@@ -92,9 +92,13 @@ class MicroscopyImager(InstrumentBase):
 async def _run(port: int) -> None:
     backend_url = os.environ.get("BACKEND_URL", "http://localhost:8000")
     interval = float(os.environ.get("VIX_INTERVAL_SECONDS", "60"))
+    initial_phase = os.environ.get("SCENARIO", "baseline")
+    scenario = Scenario(SCENARIO_DIR / "microscopy_imager.json")
+    if initial_phase != "baseline":
+        scenario.set_phase(initial_phase)
     async with httpx.AsyncClient(base_url=backend_url) as client:
         inst = MicroscopyImager(
-            scenario=Scenario(SCENARIO_DIR / "microscopy_imager.json"),
+            scenario=scenario,
             port=port,
             backend_client=client,
             interval_seconds=interval,
