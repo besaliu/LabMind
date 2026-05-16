@@ -292,7 +292,7 @@ def _register_catalog(path: str) -> None:
             tool_fn.__annotations__["return"] = Any
             return tool_fn
 
-        mcp.add_tool(_make_tool())  # FastMCP uses tool_fn.__name__ as the tool name
+        mcp.tool()(_make_tool())  # FastMCP 2.14+: tool() decorator handles Tool wrapping
         _registered_tool_names.add(tool_name)
         log.info("Registered tool: %s → %s %s%s", tool_name, method, endpoint, cmd_path)
 
