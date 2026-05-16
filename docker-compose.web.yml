@@ -1,0 +1,28 @@
+# Website-only compose: backend image (multi-stage build pulls in the
+# Vite-built React dashboard) on port 8000. No VIX mock instruments,
+# no MCP catalog mount — just enough to serve the dashboard at
+# http://localhost:8000/dashboard/run_005 reading existing run data
+# from ./labmind-data.
+#
+# Usage:
+#   docker compose -f docker-compose.web.yml up -d --build
+#   docker compose -f docker-compose.web.yml down
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: labmind-web
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./labmind-data:/labmind-data
+    environment:
+      - LABMIND_DATA=/labmind-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
