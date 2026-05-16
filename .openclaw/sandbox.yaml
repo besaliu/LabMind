@@ -1,0 +1,59 @@
+# OpenShell sandbox configuration for LabMind
+# Controls what the agent can read, write, and execute on the DGX Spark.
+
+shell: /bin/bash
+
+# File system permissions
+filesystem:
+  read:
+    - /labmind-data               # experiment data (read-only for agent; MCP tools write via backend)
+    - /instruments/catalog        # instrument YAML catalog (agent writes here)
+    - /instruments/catalog/*.yaml
+    - ${workspaceRoot}/AGENT.md
+    - ${workspaceRoot}/SCHEMAS.md
+
+  write:
+    - /instruments/catalog        # agent registers new instruments by writing YAML here
+    - /instruments/catalog/*.yaml
+
+  deny:
+    - /labmind-data/experiments/*/temp.csv         # owned by backend
+    - /labmind-data/experiments/*/impurity.csv     # owned by backend
+    - /labmind-data/experiments/*/microscope.png   # owned by backend
+    - /labmind-data/experiments/*/report.md        # owned by finalize_experiment MCP tool
+    - /labmind-data/experiments/*/metadata.json    # owned by backend + finalize_experiment
+    - /etc
+    - /usr
+    - /root
+
+# Network permissions — all instrument calls go through MCP tools, not raw HTTP
+network:
+  allow:
+    - localhost:8000   # FastAPI backend
+    - localhost:8001   # FastMCP server (self)
+    - localhost:8002   # RAG service
+    - localhost:8101   # VIX temp controller
+    - localhost:8102   # VIX pH probe
+    - localhost:8103   # VIX microscopy imager
+    - localhost:8104   # VIX reserved
+    - localhost:8105   # VIX reserved
+  deny:
+    - 0.0.0.0/0        # block all external traffic (air-gapped)
+
+# Process execution
+exec:
+  deny:
+    - curl
+    - wget
+    - ssh
+    - scp
+    - rsync
+    - docker
+    - git push         # no exfiltration
+
+# Environment variables passed into sandbox
+env:
+  LABMIND_DATA: /labmind-data
+  CATALOG_DIR: /instruments/catalog
+  BACKEND_URL: http://localhost:8000
+  RAG_SERVICE_URL: http://localhost:8002

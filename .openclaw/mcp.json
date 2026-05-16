@@ -1,12 +1,22 @@
 {
   "mcpServers": {
     "labmind": {
-      "command": "python",
+      "command": "/opt/homebrew/bin/python3.13",
       "args": ["mcp_server/server.py"],
+      "cwd": "${workspaceRoot}",
       "env": {
         "LABMIND_DATA": "/labmind-data",
-        "CATALOG_DIR": "/instruments/catalog"
+        "CATALOG_DIR": "/instruments/catalog",
+        "BACKEND_URL": "http://localhost:8000",
+        "RAG_SERVICE_URL": "http://localhost:8002"
       }
     }
+  },
+  "agent": {
+    "instructionsFile": "AGENT.md",
+    "model": "nemotron-super-120b",
+    "contextWindow": 1000000,
+    "reasoningBudget": "dynamic",
+    "temperature": 0.2
   }
 }
