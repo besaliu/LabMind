@@ -226,9 +226,8 @@ state.json              # active_run_id, pending_run_id
 | `CATALOG_DIR` | `/instruments/catalog` | Instrument YAML catalog |
 | `BACKEND_URL` | `http://localhost:8000` | FastAPI URL (MCP server) |
 | `RAG_SERVICE_URL` | `http://localhost:8002` | RAG service URL (MCP server) |
-| `RAG_SIMILARITY_THRESHOLD` | `0.85` | Block new run if similarity ≥ threshold |
 
-Defaults are set in `.openclaw/mcp.json` and `docker-compose.yml`.
+Defaults are set in `.openclaw/mcp.json` and `docker-compose.yml`. The 0.85 RAG similarity block threshold is currently enforced in the agent prompt (`AGENT.md`), not as a runtime config.
 
 ## Troubleshooting
 

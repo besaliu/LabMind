@@ -85,9 +85,9 @@ def upload_page():
     <div class="drop-zone" id="dropZone">
       <div class="icon">📄</div>
       <div>Drop your YAML file here or <strong>click to browse</strong></div>
-      <div class="hint">.yaml · .yml · .txt</div>
+      <div class="hint">.yaml · .yml · .md · .txt</div>
       <div class="filename" id="fileName"></div>
-      <input type="file" id="fileInput" accept=".yaml,.yml,.txt">
+      <input type="file" id="fileInput" accept=".yaml,.yml,.md,.txt">
     </div>
 
     <button id="uploadBtn" disabled>Upload &amp; Start</button>

@@ -213,6 +213,27 @@ timestamp,impurity_ppm,saturation_pct,ph,status
 
 ---
 
+## `microscopy.csv`
+
+Appended by the FastAPI backend each time the microscopy imager POSTs analytics (every tick, plus once per `capture_image` command). Image bytes — when present in the same payload as `image_b64` — are written separately to `microscope.png`; this CSV holds the per-tick quality metrics.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `timestamp` | ISO8601 string | When the reading was taken |
+| `clarity_pct` | float | Crystal clarity percentage (0–100) |
+| `defect_count` | int | Number of defects detected in the image |
+| `status` | string | `nominal`, `warning`, `critical` (computed by the instrument against its thresholds) |
+
+Example:
+```csv
+timestamp,clarity_pct,defect_count,status
+2026-05-10T22:00:00Z,90.2,1,nominal
+2026-05-10T22:30:00Z,90.8,0,nominal
+2026-05-13T01:30:00Z,74.1,5,warning
+```
+
+---
+
 ## `microscope.png`
 
 Latest microscopy image from the imaging instrument. Overwritten on each new image reading. PNG format. The MCP tool `get_microscopy_image` returns this as base64.
@@ -317,7 +338,7 @@ Sent by every VIX instrument to `POST /api/analytics`. Not persisted as a file �
 }
 ```
 
-The backend maps `readings` keys to CSV columns based on the instrument type. Unknown keys are stored in a catch-all `extra.json` per run (non-blocking).
+The backend maps `readings` keys to CSV columns based on the instrument type. Payloads from unknown instrument types are appended verbatim (one JSON object per line) to `extra.jsonl` in the run directory (non-blocking).
 
 ---
 
@@ -327,7 +348,6 @@ The backend maps `readings` keys to CSV columns based on the instrument type. Un
 |---------|------|
 | FastAPI backend | 8000 |
 | FastMCP server | 8001 |
-| React dashboard (dev) | 5173 |
 | VIX instrument base | 8100+ |
 | temp_controller_01 | 8101 |
 | ph_probe_01 | 8102 |

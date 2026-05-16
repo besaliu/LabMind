@@ -10,7 +10,6 @@ services:
     environment:
       - LABMIND_DATA=/labmind-data
       - CATALOG_DIR=/instruments/catalog
-      - RAG_SIMILARITY_THRESHOLD=0.85
       - RAG_SERVICE_URL=http://rag:8002
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -28,7 +27,6 @@ services:
       - LABMIND_DATA=/labmind-data
       - CHROMADB_PATH=/labmind-data/chromadb
       - OLLAMA_HOST=http://host.docker.internal:11434
-      - RAG_SIMILARITY_THRESHOLD=0.85
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
