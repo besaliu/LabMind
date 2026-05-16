@@ -14,13 +14,13 @@ DEFAULT_INSTRUMENT_URLS = [
 ]
 
 
-async def drive_phase(phase: str, clients: Iterable[httpx.AsyncClient]) -> list[dict]:
+async def drive_phase(phase: str, clients: Iterable[httpx.AsyncClient]) -> list[dict | BaseException]:
     async def _one(c: httpx.AsyncClient) -> dict:
         r = await c.post("/scenario/phase", json={"phase": phase}, timeout=5.0)
         r.raise_for_status()
         return r.json()
 
-    return await asyncio.gather(*(_one(c) for c in clients))
+    return await asyncio.gather(*(_one(c) for c in clients), return_exceptions=True)
 
 
 async def _main(phase: str, urls: list[str]) -> int:
@@ -30,9 +30,14 @@ async def _main(phase: str, urls: list[str]) -> int:
     finally:
         for c in clients:
             await c.aclose()
+    exit_code = 0
     for u, r in zip(urls, results):
-        print(f"{u} -> {r}")
-    return 0
+        if isinstance(r, BaseException):
+            print(f"{u} -> ERROR: {r}")
+            exit_code = 1
+        else:
+            print(f"{u} -> {r}")
+    return exit_code
 
 
 def main() -> None:

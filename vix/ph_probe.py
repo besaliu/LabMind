@@ -73,11 +73,6 @@ async def _run(port: int) -> None:
             interval_seconds=interval,
         )
 
-        @inst.app.on_event("startup")
-        async def _startup() -> None:
-            asyncio.create_task(inst.register())
-            asyncio.create_task(inst.analytics_loop())
-
         config = uvicorn.Config(inst.app, host="0.0.0.0", port=port, log_level="info")
         await uvicorn.Server(config).serve()
 
