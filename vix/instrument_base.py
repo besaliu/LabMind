@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Union
 
@@ -94,7 +95,13 @@ class InstrumentBase:
             await asyncio.sleep(self._interval)
 
     def _build_app(self) -> FastAPI:
-        app = FastAPI()
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            asyncio.create_task(self.register())
+            asyncio.create_task(self.analytics_loop())
+            yield
+
+        app = FastAPI(lifespan=lifespan)
 
         @app.get("/health")
         def health() -> dict[str, str]:

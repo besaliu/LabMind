@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
-import random
 from pathlib import Path
 
 import httpx
@@ -32,7 +31,6 @@ class TempController(InstrumentBase):
         self._cooling_rate_override: float | None = None
         self._temp_state: float | None = None
         self._alpha = dynamics_alpha
-        self._rng = random.Random()
 
         self.register_measure("temperature", lambda: {
             "value": self._next_temperature(), "unit": "C", "timestamp": self._now(),
@@ -99,11 +97,6 @@ async def _run(port: int) -> None:
             backend_client=client,
             interval_seconds=interval,
         )
-
-        @inst.app.on_event("startup")
-        async def _startup() -> None:
-            asyncio.create_task(inst.register())
-            asyncio.create_task(inst.analytics_loop())
 
         config = uvicorn.Config(inst.app, host="0.0.0.0", port=port, log_level="info")
         await uvicorn.Server(config).serve()
