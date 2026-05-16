@@ -20,12 +20,12 @@ FastAPI Backend (:8000) ──── /labmind-data/
     ▼
 VIX mock instruments (:8101–8103)
 
-OpenClaw (:18789, loopback) ◄── stdio ── FastMCP (mcp_server/, spawned from .openclaw/mcp.json)
+OpenClaw (:18789, loopback) ◄── stdio ── mcp-remote ◄── SSE ── FastMCP (Docker :8001)
     │
     └── AGENT.md (system prompt) + Ollama (chat model, host :11434)
 ```
 
-The FastMCP server is **not** exposed on port 8001 in normal operation. OpenClaw spawns `mcp_server/server.py` as a child process over stdio when you run `openclaw` from the repo root.
+The FastMCP server runs as a Docker service on port 8001 (HTTP/SSE). OpenClaw connects to it via `mcp-remote` (an npm bridge), registered using MCPorter. All five services start with `docker compose up`.
 
 ## Prerequisites
 
@@ -33,9 +33,10 @@ All of these must be installed and working on the Spark host before you start th
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| Docker + Docker Compose | 24+ | Backend and VIX services |
-| Python | 3.10+ | MCP server (runs outside Docker, spawned by OpenClaw) |
-| OpenClaw | latest | NVIDIA agentic CLI — spawns the MCP server |
+| Docker + Docker Compose | 24+ | All services (backend, MCP server, VIX instruments) |
+| Node.js + npm | 18+ | OpenClaw, MCPorter, and mcp-remote |
+| OpenClaw | latest | `npm i -g openclaw` |
+| MCPorter | latest | `npm i -g mcporter` |
 | Ollama | latest | Chat model for the agent |
 | Tailscale | latest | Required only if you want to reach the Spark from another machine |
 
@@ -43,9 +44,10 @@ Quick prerequisite check on the Spark:
 
 ```bash
 docker --version && docker compose version
-python3 --version            # must be 3.10+
+node --version && npm --version  # must be Node 18+
+openclaw --version
+mcporter --version
 ollama --version
-openclaw --version           # or `which openclaw`
 tailscale ip -4              # optional; remember this IP for the SSH tunnel later
 docker ps                    # if this errors with permission denied, add yourself to the docker group:
                              # sudo usermod -aG docker $USER && newgrp docker
@@ -72,35 +74,71 @@ ollama run nemotron-3-super:latest "Hello"
 
 Configure OpenClaw/Nemoclaw inference to use the chat-model tag (during onboarding choose **Local Ollama**, or at runtime: `openshell inference set --provider ollama --model nemotron-3-super:latest`). The repo does not pin the model in `.openclaw/` — only MCP and sandbox settings live there.
 
-### 3. Install MCP server dependencies
-
-```bash
-pip install -r mcp_server/requirements.txt
-python3 --version   # must be 3.10+
-```
-
-### 4. Start backend services
+### 3. Start all services
 
 ```bash
 docker compose up -d --build
-docker compose ps           # all four services should be "running"; backend should be "healthy"
+docker compose ps           # all five services should be "running"; backend should be "healthy"
 ```
 
 | Service | Port | Purpose |
 |---------|------|---------|
 | `backend` | 8000 | FastAPI — experiment upload, state, analytics |
+| `mcp` | 8001 | FastMCP server — MCP tools over HTTP/SSE |
 | `vix-temp-controller` | 8101 | Mock temperature controller |
 | `vix-ph-probe` | 8102 | Mock pH probe |
 | `vix-microscopy-imager` | 8103 | Mock microscopy imager |
 
-Smoke checks:
+Smoke check:
 
 ```bash
-curl -s http://localhost:8000/health                       # {"status":"ok"}
-curl -s http://localhost:8000/api/instruments | head -c 200 # should list the three vix instruments after ~30s
+curl -s http://localhost:8000/health   # {"status":"ok"}
+curl -s http://localhost:8001/sse      # SSE stream opens — Ctrl-C to stop
 ```
 
-### 5. Start OpenClaw
+### 4. Configure OpenClaw and start the gateway
+
+```bash
+openclaw configure
+```
+
+You can skip channel setup if you are only testing locally.
+
+```bash
+openclaw gateway
+```
+
+Confirm the gateway is running:
+
+```bash
+openclaw gateway status
+openclaw doctor
+```
+
+Once these commands succeed, the runtime is active.
+
+### 5. Register the MCP server with MCPorter
+
+```bash
+npm i -g mcporter
+mcporter config add labmind --command 'npx mcp-remote "http://localhost:8001/sse"'
+```
+
+Confirm it is registered:
+
+```bash
+mcporter config list
+```
+
+Verify tool access — list all exposed tools and schemas:
+
+```bash
+mcporter list
+```
+
+If this returns `get_experiment`, `list_experiment_reports`, `get_temperature_curve`, `compare_runs`, `log_intervention`, `finalize_experiment`, plus dynamic instrument tools, the MCP connection is working.
+
+### 6. Start OpenClaw
 
 From the repo root:
 
@@ -108,20 +146,12 @@ From the repo root:
 openclaw
 ```
 
-OpenClaw reads `.openclaw/mcp.json` and spawns the MCP server automatically. It loads `AGENT.md` as the agent system prompt. Sandbox rules are in `.openclaw/sandbox.yaml`.
+OpenClaw reads `.openclaw/mcp.json`, connects to the MCP server via `mcp-remote`, and loads `AGENT.md` as the agent system prompt.
 
-Confirm the MCP tools are loaded by asking the agent in the chat: "List your available MCP tools." You should see `get_experiment`, `list_experiment_reports`, `get_temperature_curve`, `compare_runs`, `log_intervention`, `finalize_experiment`, plus dynamic instrument tools like `temp_controller_read_temperature`, `ph_probe_add_buffer`, `microscopy_imager_capture_image`, etc.
-
-If those tools do not appear, register the MCP server manually:
-
-```bash
-openclaw mcp set
-# use the command, args, cwd, and env values from .openclaw/mcp.json
-```
-
-### 6. Access the UI
+### 7. Access the UI
 
 **Experiment upload** (built into the backend, no separate dashboard):
+
 
 ```
 http://localhost:8000        # if you are on the Spark itself
@@ -199,7 +229,7 @@ LabMind/
 │   ├── mcp.json             # MCP server spawn config (stdio)
 │   └── sandbox.yaml         # Filesystem and network sandbox rules
 ├── backend/                 # FastAPI backend (port 8000)
-├── mcp_server/              # FastMCP server (spawned by OpenClaw, stdio)
+├── mcp_server/              # FastMCP server (Docker :8001, HTTP/SSE)
 ├── vix/                     # Mock instrument servers (8101-8103) + demo_controller.py
 ├── instruments/catalog/     # Instrument YAML tool definitions (agent-writable)
 ├── docs/                    # Plans, handoffs, design notes
@@ -207,8 +237,6 @@ LabMind/
     ├── experiments/         # One directory per run (seed: run_001, run_002)
     └── instruments/         # registry.json
 ```
-
-The MCP server runs from the repo root and uses relative paths — no symlinks needed.
 
 ### Data layout (per run)
 
@@ -227,18 +255,20 @@ state.json              # active_run_id, pending_run_id
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LABMIND_DATA` | `labmind-data` | Root data directory (relative to repo root for MCP server; `/labmind-data` inside Docker) |
-| `CATALOG_DIR` | `instruments/catalog` | Instrument YAML catalog (relative to repo root for MCP server; `/instruments/catalog` inside Docker) |
-| `BACKEND_URL` | `http://localhost:8000` | FastAPI URL (MCP server) |
+| `LABMIND_DATA` | `/labmind-data` | Root data directory (mounted volume inside Docker) |
+| `CATALOG_DIR` | `/instruments/catalog` | Instrument YAML catalog (mounted volume inside Docker) |
+| `BACKEND_URL` | `http://backend:8000` | FastAPI URL used by the MCP container |
+| `MCP_PORT` | `8001` | Port the FastMCP SSE server listens on |
 
-Defaults are set in `.openclaw/mcp.json` and `docker-compose.yml`.
+Defaults are set in `docker-compose.yml`.
 
 ## Troubleshooting
 
 **Dynamic instrument tools missing in OpenClaw**
 
 - Catalog files: `ls instruments/catalog/` from the repo root must list the three shipped YAMLs.
-- Restart OpenClaw — the MCP server only spawns at OpenClaw startup, but the file watcher picks up YAML changes within ~2s while running.
+- `docker compose logs mcp -f` — the file watcher picks up YAML changes within ~2s; check logs for registration messages.
+- Verify the connection: `mcporter list` — if tools appear here but not in OpenClaw, restart OpenClaw.
 
 **Backend returns 409 on upload**
 
@@ -251,8 +281,14 @@ Defaults are set in `.openclaw/mcp.json` and `docker-compose.yml`.
 
 **MCP server cannot read experiment data**
 
-- `ls labmind-data/experiments` from the repo root must list run directories.
-- Confirm OpenClaw is launched from the repo root (`cd ~/LabMind && openclaw`) so relative paths in `.openclaw/mcp.json` resolve correctly.
+- `docker compose logs mcp` — check for startup errors.
+- `ls labmind-data/experiments` from the repo root must list run directories; the volume mount exposes this inside the container as `/labmind-data/experiments`.
+
+**MCPorter shows no tools / mcp-remote connection refused**
+
+- Confirm `docker compose ps` shows the `mcp` service as running.
+- `curl http://localhost:8001/sse` should open an SSE stream; if it fails the container is not up.
+- Re-run `mcporter config add labmind --command 'npx mcp-remote "http://localhost:8001/sse"'` if the registration was lost.
 
 **Form uploader rejects `.md` files**
 
