@@ -190,11 +190,27 @@ def _assert_run_exists(run_id: str) -> None:
 
 
 def _parse_doc(content: str, filename: str) -> dict:
+    # YAML files — parse directly
     if filename.endswith((".yaml", ".yml")):
         try:
             return yaml.safe_load(content) or {}
         except yaml.YAMLError:
             pass
+
+    # Markdown files — extract YAML front matter between --- delimiters
+    if filename.endswith(".md"):
+        stripped = content.lstrip()
+        if stripped.startswith("---"):
+            parts = stripped[3:].split("---", 1)
+            if len(parts) >= 1:
+                try:
+                    parsed = yaml.safe_load(parts[0]) or {}
+                    if isinstance(parsed, dict):
+                        return parsed
+                except yaml.YAMLError:
+                    pass
+
+    # Plain text fallback — treat entire content as hypothesis
     try:
         return yaml.safe_load(content) or {}
     except Exception:
