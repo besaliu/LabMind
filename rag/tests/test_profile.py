@@ -19,11 +19,13 @@ def test_build_profile_run_001(tmp_path, isolated_data_root):
         "Parameters:",
         "Success criteria:",
         "Status:",
-        "Notes:",
+        "Key findings:",
+        "Risks:",
         "Temperature:",
         "Impurity:",
         "Microscopy observations:",
         "Interventions:",
+        "Report:",
     ):
         assert prefix in p.text, f"missing line prefix: {prefix}"
 

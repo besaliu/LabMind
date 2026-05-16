@@ -26,10 +26,11 @@ def build_profile(run_id: str, data_root: str | os.PathLike[str]) -> ProfileDoc:
         raise FileNotFoundError(f"experiment run dir not found: {run_dir}")
 
     metadata = _load_metadata(run_dir / "metadata.json")
-    temp_stats = _temp_stats(run_dir / "temp.csv", metadata.get("thresholds", {}))
+    temp_stats = _temp_stats(run_dir / "temp.csv", metadata)
     impurity_stats = _impurity_stats(run_dir / "impurity.csv")
     microscopy_labels = _microscopy_labels(run_dir / "microscopy.json")
     interventions = _intervention_lines(run_dir / "interventions.json")
+    report_body = _load_report(run_dir / "report.md")
 
     text = _render_profile_text(
         metadata=metadata,
@@ -37,6 +38,7 @@ def build_profile(run_id: str, data_root: str | os.PathLike[str]) -> ProfileDoc:
         impurity_stats=impurity_stats,
         microscopy_labels=microscopy_labels,
         interventions=interventions,
+        report_body=report_body,
     )
     summary = _render_summary(metadata, interventions_count=interventions["count"])
     chroma_metadata = _chroma_metadata(metadata)
@@ -54,13 +56,21 @@ def _load_metadata(path: Path) -> dict[str, Any]:
         return json.load(f)
 
 
-def _temp_stats(path: Path, thresholds: dict[str, Any]) -> dict[str, Any]:
+def _temp_stats(path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+    """Count threshold violations using the schema's monitoring.temperature_c block.
+
+    Falls back to the legacy flat `thresholds` block if present, so older
+    seed data without `monitoring` still works.
+    """
     if not path.exists():
         return {"present": False}
     temps: list[float] = []
     violations = 0
-    temp_max = thresholds.get("temp_max_c")
-    temp_min = thresholds.get("temp_min_c")
+    monitoring = metadata.get("monitoring", {}) or {}
+    temp_block = monitoring.get("temperature_c", {}) or {}
+    legacy = metadata.get("thresholds", {}) or {}
+    temp_max = temp_block.get("critical_above", legacy.get("temp_max_c"))
+    temp_min = temp_block.get("critical_below", legacy.get("temp_min_c"))
     with path.open() as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -148,8 +158,13 @@ def _microscopy_labels(path: Path) -> list[str]:
     if not isinstance(raw, dict):
         return []
 
+    # Keys that hold metadata not useful for similarity (timestamps, ids).
+    NOISE_KEYS = {"captured_at", "timestamp", "id", "run_id"}
+
     labels: list[str] = []
     for key in sorted(raw.keys()):  # stable order
+        if key in NOISE_KEYS:
+            continue
         value = raw[key]
         if isinstance(value, bool):
             if value:
@@ -190,6 +205,7 @@ def _render_profile_text(
     impurity_stats: dict[str, Any],
     microscopy_labels: list[str],
     interventions: dict[str, Any],
+    report_body: str,
 ) -> str:
     params = metadata.get("parameters", {})
     param_parts = [
@@ -203,9 +219,10 @@ def _render_profile_text(
         f"Hypothesis: {metadata.get('hypothesis', '')}",
         f"Instruments: {', '.join(metadata.get('instruments', []))}",
         f"Parameters: {', '.join(param_parts)}",
-        f"Success criteria: {metadata.get('success_criteria', '')}",
+        f"Success criteria: {_render_success_criteria(metadata.get('success_criteria'))}",
         f"Status: {metadata.get('status', '')} ({metadata.get('outcome', 'unknown')})",
-        f"Notes: {metadata.get('notes', '')}",
+        f"Key findings: {_join_list(metadata.get('key_findings'))}",
+        f"Risks: {_join_list(metadata.get('known_risks'))}",
     ]
     if temp_stats.get("present"):
         lines.append(
@@ -229,7 +246,60 @@ def _render_profile_text(
     lines.append(
         f"Interventions: {interventions['count']} total — {intervention_summary}"
     )
+    if report_body:
+        lines.append(f"Report:\n{report_body}")
     return "\n".join(lines)
+
+
+def _render_success_criteria(criteria: Any) -> str:
+    """Render success criteria as a flat readable string.
+
+    Schema is a list of {metric, target} dicts. Older inline-string form is
+    passed through unchanged.
+    """
+    if not criteria:
+        return "none"
+    if isinstance(criteria, str):
+        return criteria
+    if isinstance(criteria, list):
+        parts = []
+        for item in criteria:
+            if isinstance(item, dict):
+                metric = item.get("metric", "")
+                target = item.get("target", "")
+                if metric and target:
+                    parts.append(f"{metric} {target}")
+            elif isinstance(item, str) and item.strip():
+                parts.append(item.strip())
+        return ", ".join(parts) if parts else "none"
+    return str(criteria)
+
+
+def _join_list(values: Any) -> str:
+    """Join a list of strings into a profile line; emit 'none' for missing/empty."""
+    if not values:
+        return "none"
+    if isinstance(values, str):
+        return values
+    if isinstance(values, list):
+        parts = [str(v).strip() for v in values if str(v).strip()]
+        return "; ".join(parts) if parts else "none"
+    return str(values)
+
+
+def _load_report(path: Path) -> str:
+    """Return the markdown body of report.md, or empty string if missing.
+
+    Only finalized runs have a report. The ingest API filters to
+    completed/failed runs, so this should always find a file in practice —
+    but missing is handled gracefully so partial seed data doesn't break.
+    """
+    if not path.exists():
+        return ""
+    try:
+        return path.read_text().strip()
+    except OSError:
+        return ""
 
 
 def _render_summary(metadata: dict[str, Any], interventions_count: int) -> str:
