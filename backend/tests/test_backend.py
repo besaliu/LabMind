@@ -177,7 +177,7 @@ def test_upload_creates_run_directory(client, isolated_data_dir):
     assert resp.status_code == 200
     body = resp.json()
     assert "run_id" in body
-    assert body["status"] in ("blocked", "clear")
+    assert body["status"] == "pending"  # RAG check is agent's job via MCP tool
 
     meta_path = isolated_data_dir / "experiments" / body["run_id"] / "metadata.json"
     assert meta_path.exists()

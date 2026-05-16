@@ -5,6 +5,7 @@ import yaml
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import PlainTextResponse
+from typing import Optional
 
 from models import FinalizePayload
 import storage
@@ -43,10 +44,10 @@ async def upload_experiment(doc: UploadFile = File(...)):
     }
     storage.write_metadata(run_id, meta)
 
-    rag_findings = await _check_rag(parsed.get("hypothesis", ""), content)
-    status = "blocked" if rag_findings else "clear"
-
-    return {"run_id": run_id, "rag_findings": rag_findings, "status": status}
+    # RAG similarity check is the agent's responsibility via the query_rag MCP tool.
+    # The agent polls GET /api/experiments/current, sees status=pending, runs the check,
+    # and calls alert_researcher if a similar experiment is found.
+    return {"run_id": run_id, "status": "pending"}
 
 
 # ---------------------------------------------------------------------------
@@ -174,25 +175,10 @@ def _parse_doc(content: str, filename: str) -> dict:
             return yaml.safe_load(content) or {}
         except yaml.YAMLError:
             pass
-    # Fallback: try YAML parse on markdown frontmatter or bare YAML content
     try:
         return yaml.safe_load(content) or {}
     except Exception:
         return {"hypothesis": content[:500]}
-
-
-async def _check_rag(hypothesis: str, full_text: str) -> list[dict]:
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.post(
-                f"{RAG_SERVICE_URL}/query",
-                json={"query": hypothesis or full_text, "top_k": 3},
-            )
-            if resp.status_code == 200:
-                return resp.json().get("results", [])
-    except Exception:
-        pass
-    return []
 
 
 async def _trigger_rag_ingest(run_id: str) -> bool:
