@@ -1,7 +1,10 @@
 {
   "run_id": "run_002",
-  "hypothesis": "KDP crystals grown at 35°C with faster cooling rate of 1.5°C/hour will still yield acceptable purity while reducing growth time",
-  "instruments": ["temp_controller", "ph_probe", "microscopy_imager", "chemical_stability"],
+  "hypothesis": "KDP crystals grown at 35°C with faster cooling rate of 1.5°C/hour will still yield acceptable purity while reducing total growth time",
+  "context": "Follow-up to run_001 baseline. Testing whether tripling the cooling rate (0.5 → 1.5°C/hour) compromises crystal quality enough to matter. If acceptable, faster cooling saves 4-5 hours per batch. Same reagent concentrations and starting conditions as run_001. Key risk is thermal shock during nucleation — faster cooling narrows the stable window and increases sensitivity to any temperature excursion.",
+  "experiment_type": "crystallization",
+  "duration_hours": 8,
+  "instruments": ["temp_controller", "ph_probe", "microscopy_imager"],
   "parameters": {
     "target_temp_c": 35.0,
     "cooling_rate_c_per_hour": 1.5,
@@ -10,17 +13,101 @@
     "solvent": "deionized_water",
     "initial_concentration_g_per_L": 240.0
   },
-  "thresholds": {
-    "temp_max_c": 38.0,
-    "temp_min_c": 32.0,
-    "impurity_max_ppm": 50.0,
-    "ph_min": 6.5,
-    "ph_max": 7.5
+  "stages": [
+    {
+      "name": "equilibration",
+      "hours": "0-2",
+      "description": "Hold at 35°C. Allow solution to reach thermal and chemical steady state. Impurity readings may be slightly elevated (up to 25 ppm) during this phase — this is normal."
+    },
+    {
+      "name": "nucleation",
+      "hours": "2-5",
+      "description": "Faster cooling phase begins. Higher cooling rate makes this stage more sensitive than run_001. Treat warning_above as critical during this window. Any thermal excursion here is likely to produce polycrystalline growth."
+    },
+    {
+      "name": "growth",
+      "hours": "5-8",
+      "description": "Crystals growing. Monitor impurity closely. Capture microscopy images every 30 minutes."
+    }
+  ],
+  "monitoring": {
+    "temperature_c": {
+      "target": 35.0,
+      "warning_above": 37.0,
+      "critical_above": 38.0,
+      "warning_below": 33.0,
+      "critical_below": 31.0,
+      "concern": "At 1.5°C/hour cooling rate, the crystal lattice is more fragile than in run_001. Any temperature excursion during nucleation (hours 2-5) has a higher probability of causing cracking. Respond faster than baseline — do not wait for a second warning reading before acting."
+    },
+    "impurity_ppm": {
+      "target": 15.0,
+      "warning_above": 35.0,
+      "critical_above": 50.0,
+      "concern": "Rising impurity means crystals are dissolving. At faster cooling rates this can cascade quickly. If impurity rises alongside temperature, correct temperature first. Compare to run_001 at the same elapsed time to distinguish expected vs anomalous rise."
+    },
+    "ph": {
+      "target": 7.1,
+      "warning_above": 7.4,
+      "critical_above": 7.6,
+      "warning_below": 6.8,
+      "critical_below": 6.5,
+      "concern": "Same as run_001. pH above 7.5 causes irreversible KDP hydrolysis. Sudden jumps indicate contamination or probe malfunction."
+    }
   },
-  "success_criteria": "Crystal clarity > 90%, impurity < 30ppm, no visible cracking",
+  "remediation": {
+    "temperature_high": {
+      "instrument": "temp_controller",
+      "action": "reduce_setpoint",
+      "max_step_c": 1.0,
+      "max_total_adjustment_c": 2.0,
+      "note": "Never reduce more than 1°C per cycle. At faster cooling rates, overcorrection risk is higher. Wait one full cycle before re-adjusting."
+    },
+    "temperature_low": {
+      "instrument": "temp_controller",
+      "action": "increase_setpoint",
+      "max_step_c": 0.5,
+      "max_total_adjustment_c": 1.5,
+      "note": "Warm slowly. Only intervene if below warning_below for two consecutive readings."
+    },
+    "ph_high": {
+      "instrument": "ph_probe",
+      "action": "add_buffer",
+      "start_volume_ml": 5.0,
+      "note": "Start with 5ml, wait 60s, re-read before adding more."
+    },
+    "ph_low": {
+      "instrument": "ph_probe",
+      "action": "add_buffer",
+      "start_volume_ml": 5.0
+    },
+    "impurity_spike": {
+      "instrument": "temp_controller",
+      "action": "reduce_setpoint",
+      "max_step_c": 0.5,
+      "note": "Lower temp to encourage re-crystallization. Check temperature first — impurity spikes at faster cooling rates almost always follow a thermal excursion."
+    }
+  },
+  "success_criteria": [
+    {"metric": "crystal_clarity_pct", "target": ">= 90"},
+    {"metric": "final_impurity_ppm", "target": "< 30"},
+    {"metric": "critical_excursions", "target": "0"},
+    {"metric": "time_saved_vs_run_001", "target": "> 0 hours"}
+  ],
+  "known_risks": [
+    "Faster cooling rate increases nucleation sensitivity — any temperature spike during hours 2-5 is more likely to cause cracking than in run_001.",
+    "Temperature control lags 2-3 minutes after a setpoint change — wait a full cycle before re-adjusting.",
+    "Impurity may spike transiently at the start of cooling (hour 2) as the system adjusts to faster rate — observe for 2 readings before treating as an anomaly.",
+    "Cooling system may overshoot by 0.5-1°C on the first cycle — normal behavior."
+  ],
   "start_time": "2026-05-12T22:00:00Z",
   "end_time": "2026-05-13T06:15:00Z",
   "status": "completed",
   "outcome": "partial_failure",
-  "notes": "Temperature spike at hour 3 caused by cooling system fault. Agent intervened and corrected. Crystal clarity 71% — below target. Impurity elevated due to thermal shock. Faster cooling rate not recommended for KDP."
+  "key_findings": [
+    "Temperature spike at hour 3 (40.1°C) caused by cooling system fault during nucleation — exceeded critical threshold",
+    "Agent intervened: reduced setpoint to 32°C; temperature recovered within 8 minutes but crystal damage already occurred",
+    "Final impurity 61.4 ppm above 30 ppm target — thermal shock dissolved partially-formed crystals",
+    "Crystal clarity 71% — below 90% target; polycrystalline growth observed in microscopy image",
+    "Faster cooling rate (1.5°C/hour) not recommended for KDP — nucleation window too narrow to tolerate excursions"
+  ]
 }

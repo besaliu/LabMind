@@ -27,31 +27,142 @@ instruments/
 
 ---
 
+## Experiment document format (uploaded by researcher)
+
+YAML file uploaded to `POST /api/experiments/upload`. The backend parses this and stores all fields in `metadata.json`. The agent reads `metadata.json` via the `get_experiment` MCP tool.
+
+```yaml
+hypothesis: KDP crystals grown at 35°C with slow cooling will produce larger, purer crystals
+
+context: |
+  Multi-line scientific background. Why this experiment, what the expected
+  mechanism is, what past runs inform it. Used for RAG similarity search
+  and agent decision-making throughout the run.
+
+experiment_type: crystallization   # free-form label
+duration_hours: 8
+
+instruments:
+  - temp_controller
+  - ph_probe
+  - microscopy_imager
+
+parameters:                         # experiment-specific setup values
+  target_temp_c: 35.0
+  cooling_rate_c_per_hour: 0.5
+
+stages:                             # ordered phases; agent uses elapsed time to determine current stage
+  - name: equilibration
+    hours: "0-2"
+    description: Hold at target temp. Slight impurity elevation is normal here.
+  - name: nucleation
+    hours: "2-6"
+    description: Critical phase. Treat warning_above as critical. No large adjustments.
+  - name: growth
+    hours: "6-8"
+    description: Monitor impurity closely. Capture microscopy every 30 minutes.
+
+monitoring:                         # per-parameter thresholds with context
+  temperature_c:
+    target: 35.0
+    warning_above: 37.0             # agent notes but does not yet act
+    critical_above: 38.0            # agent acts immediately
+    warning_below: 33.0
+    critical_below: 31.0
+    concern: >
+      Why this matters and any stage-specific tightening rules.
+  impurity_ppm:
+    target: 15.0
+    warning_above: 35.0
+    critical_above: 50.0
+    concern: >
+      Rising impurity means crystals are dissolving. Correlates with temperature.
+  ph:
+    target: 7.1
+    warning_above: 7.4
+    critical_above: 7.6
+    warning_below: 6.8
+    critical_below: 6.5
+    concern: >
+      pH above 7.5 causes irreversible KDP hydrolysis.
+
+remediation:                        # agent reads this to determine the correct action per problem type
+  temperature_high:
+    instrument: temp_controller
+    action: reduce_setpoint
+    max_step_c: 1.0
+    max_total_adjustment_c: 2.0
+    note: Never reduce more than 1°C per cycle.
+  temperature_low:
+    instrument: temp_controller
+    action: increase_setpoint
+    max_step_c: 0.5
+  ph_high:
+    instrument: ph_probe
+    action: add_buffer
+    start_volume_ml: 5.0
+  ph_low:
+    instrument: ph_probe
+    action: add_buffer
+    start_volume_ml: 5.0
+  impurity_spike:
+    instrument: temp_controller
+    action: reduce_setpoint
+    max_step_c: 0.5
+
+success_criteria:                   # used in morning report outcome section
+  - metric: crystal_clarity_pct
+    target: ">= 90"
+  - metric: final_impurity_ppm
+    target: "< 30"
+
+known_risks:                        # agent reads these before deciding to intervene
+  - Impurity in hours 2-4 may be elevated during nucleation onset — not a reason to intervene
+  - Temperature control lags 2-3 minutes after setpoint change — wait before re-adjusting
+```
+
+---
+
 ## `metadata.json`
 
-Created by the FastAPI backend when an experiment doc is uploaded. Updated throughout the run.
+Created by the FastAPI backend when an experiment doc is uploaded. All fields from the experiment doc are stored here verbatim, plus runtime fields added by the backend.
 
 ```json
 {
   "run_id": "run_001",
   "hypothesis": "KDP crystals grown at 35°C with slow cooling will produce larger, purer crystals",
+  "context": "Scientific background and rationale...",
+  "experiment_type": "crystallization",
+  "duration_hours": 8,
   "instruments": ["temp_controller", "ph_probe", "microscopy_imager"],
-  "parameters": {
-    "target_temp_c": 35.0,
-    "cooling_rate_c_per_hour": 0.5,
-    "growth_duration_hours": 8
+  "parameters": {"target_temp_c": 35.0, "cooling_rate_c_per_hour": 0.5},
+  "stages": [
+    {"name": "equilibration", "hours": "0-2", "description": "..."},
+    {"name": "nucleation", "hours": "2-6", "description": "..."}
+  ],
+  "monitoring": {
+    "temperature_c": {
+      "target": 35.0,
+      "warning_above": 37.0, "critical_above": 38.0,
+      "warning_below": 33.0, "critical_below": 31.0,
+      "concern": "Why this matters..."
+    },
+    "impurity_ppm": {"target": 15.0, "warning_above": 35.0, "critical_above": 50.0, "concern": "..."},
+    "ph": {"target": 7.1, "warning_above": 7.4, "critical_above": 7.6, "warning_below": 6.8, "critical_below": 6.5, "concern": "..."}
   },
-  "thresholds": {
-    "temp_max_c": 38.0,
-    "temp_min_c": 32.0,
-    "impurity_max_ppm": 50.0,
-    "ph_min": 6.5,
-    "ph_max": 7.5
+  "remediation": {
+    "temperature_high": {"instrument": "temp_controller", "action": "reduce_setpoint", "max_step_c": 1.0, "note": "..."},
+    "ph_high": {"instrument": "ph_probe", "action": "add_buffer", "start_volume_ml": 5.0}
   },
-  "success_criteria": "Crystal clarity > 90%, impurity < 30ppm, no cracking",
+  "success_criteria": [
+    {"metric": "crystal_clarity_pct", "target": ">= 90"}
+  ],
+  "known_risks": ["Impurity elevation during hours 2-4 is expected..."],
   "start_time": "2026-05-15T22:00:00Z",
   "end_time": null,
-  "status": "active"
+  "status": "active",
+  "outcome": null,
+  "key_findings": []
 }
 ```
 
