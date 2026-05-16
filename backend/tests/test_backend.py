@@ -306,3 +306,127 @@ def test_get_report_404_before_finalization(client, active_experiment):
     assert resp.status_code == 404
 
 
+# ---------------------------------------------------------------------------
+# Dashboard bundle
+# ---------------------------------------------------------------------------
+
+def _seed_dashboard_run(data_dir: Path, run_id: str = "run_005") -> Path:
+    """Seed a complete run with event-tagged CSVs for dashboard tests."""
+    run = data_dir / "experiments" / run_id
+    run.mkdir(parents=True)
+
+    meta = {
+        "run_id": run_id,
+        "hypothesis": "Test hypothesis",
+        "experiment_type": "crystallization",
+        "instruments": ["temp_controller", "ph_probe"],
+        "parameters": {"target_temp_c": 36.0, "cooling_rate_c_per_hour": 2.0, "substrate": "KDP"},
+        "monitoring": {
+            "temperature_c": {"target": 36.0, "warning_above": 38.0, "critical_above": 39.0,
+                              "warning_below": 34.0, "critical_below": 32.0},
+            "impurity_ppm":  {"target": 15.0, "warning_above": 35.0, "critical_above": 50.0},
+            "ph":            {"target": 7.1,  "warning_above": 7.4,  "critical_above": 7.6,
+                              "warning_below": 6.8, "critical_below": 6.5},
+        },
+        "status": "completed",
+        "outcome": "success",
+        "key_findings": ["finding A"],
+    }
+    (run / "metadata.json").write_text(json.dumps(meta))
+
+    (run / "temp.csv").write_text(
+        "timestamp,temperature_c,setpoint_c,status,event\n"
+        "2026-05-17T01:00:00Z,33.0,33.0,nominal,\n"
+        "2026-05-17T01:05:00Z,33.0,33.0,nominal,temp_probe_lag_suspected\n"
+        "2026-05-17T01:10:00Z,33.1,33.0,nominal,temp_probe_lag_suspected\n"
+        "2026-05-17T01:15:00Z,33.0,33.5,nominal,agent_intervention:set_temperature\n"
+        "2026-05-17T01:20:00Z,32.4,33.5,warning,temp_dip_confirmed_post_intervention\n"
+    )
+    (run / "impurity.csv").write_text(
+        "timestamp,impurity_ppm,saturation_pct,ph,status,event\n"
+        "2026-05-17T01:00:00Z,24.0,77.8,7.14,nominal,impurity_rising_nominal_range\n"
+        "2026-05-17T01:05:00Z,28.0,77.7,7.14,nominal,impurity_spike_rate_5ppm_per_min\n"
+        "2026-05-17T01:10:00Z,38.0,77.6,7.14,warning,impurity_above_warning_threshold\n"
+        "2026-05-17T01:15:00Z,42.0,77.4,7.14,warning,impurity_above_warning_threshold\n"
+        "2026-05-17T01:20:00Z,39.0,77.3,7.14,warning,impurity_recovering\n"
+    )
+    (run / "microscopy.csv").write_text(
+        "timestamp,clarity_pct,defect_count,status,event\n"
+        "2026-05-17T01:30:00Z,92.8,2,nominal,minor_surface_stress_observed\n"
+        "2026-05-17T02:00:00Z,92.4,2,nominal,\n"
+    )
+    (run / "interventions.json").write_text(json.dumps([
+        {"timestamp": "2026-05-17T01:15:00Z",
+         "action": "set_temperature(target_temp_c=33.5)",
+         "reasoning": "sensor lag suspected",
+         "outcome": "temperature dipped to 32.4°C as predicted"}
+    ]))
+    (run / "microscopy.json").write_text(json.dumps({
+        "clarity": 0.91, "morphology": "single_crystal", "captured_at": "2026-05-17T06:00:00Z"
+    }))
+    return run
+
+
+def test_dashboard_bundle_returns_full_shape(client, isolated_data_dir):
+    _seed_dashboard_run(isolated_data_dir)
+    resp = client.get("/api/experiments/run_005/dashboard_bundle")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["run_id"] == "run_005"
+    assert {"metadata", "interventions", "microscopy_snapshot",
+            "series", "event_ranges", "thresholds"} <= body.keys()
+    assert {"temp", "impurity", "microscopy"} == set(body["series"].keys())
+
+
+def test_dashboard_bundle_coerces_numeric_fields(client, isolated_data_dir):
+    _seed_dashboard_run(isolated_data_dir)
+    body = client.get("/api/experiments/run_005/dashboard_bundle").json()
+    first_temp = body["series"]["temp"][0]
+    assert first_temp["temperature_c"] == 33.0
+    assert isinstance(first_temp["temperature_c"], float)
+    assert first_temp["t"] == "2026-05-17T01:00:00Z"
+
+
+def test_dashboard_bundle_collapses_same_tag_runs_into_one_range(client, isolated_data_dir):
+    _seed_dashboard_run(isolated_data_dir)
+    body = client.get("/api/experiments/run_005/dashboard_bundle").json()
+    warning_ranges = [r for r in body["event_ranges"]
+                      if r["tag"] == "impurity_above_warning_threshold"]
+    assert len(warning_ranges) == 1
+    assert warning_ranges[0]["start"] == "2026-05-17T01:10:00Z"
+    # end = next-row timestamp (the row where the tag changes)
+    assert warning_ranges[0]["end"] == "2026-05-17T01:20:00Z"
+    assert warning_ranges[0]["category"] == "threshold"
+    assert warning_ranges[0]["panel"] == "impurity"
+
+
+def test_dashboard_bundle_excludes_agent_intervention_tags_from_event_ranges(client, isolated_data_dir):
+    _seed_dashboard_run(isolated_data_dir)
+    body = client.get("/api/experiments/run_005/dashboard_bundle").json()
+    tags = [r["tag"] for r in body["event_ranges"]]
+    assert not any(t.startswith("agent_intervention") for t in tags)
+    # but the interventions array still carries the full record
+    assert len(body["interventions"]) == 1
+    assert "reasoning" in body["interventions"][0]
+
+
+def test_dashboard_bundle_extracts_thresholds_from_metadata(client, isolated_data_dir):
+    _seed_dashboard_run(isolated_data_dir)
+    body = client.get("/api/experiments/run_005/dashboard_bundle").json()
+    assert body["thresholds"]["temp"]["warning_above"] == 38.0
+    assert body["thresholds"]["impurity"]["warning_above"] == 35.0
+    assert body["thresholds"]["ph"]["critical_above"] == 7.6
+
+
+def test_dashboard_bundle_404_for_unknown_run(client):
+    resp = client.get("/api/experiments/run_999/dashboard_bundle")
+    assert resp.status_code == 404
+
+
+def test_dashboard_bundle_handles_missing_microscopy_csv(client, isolated_data_dir):
+    run = _seed_dashboard_run(isolated_data_dir, "run_min")
+    (run / "microscopy.csv").unlink()
+    body = client.get("/api/experiments/run_min/dashboard_bundle").json()
+    assert body["series"]["microscopy"] == []
+
+

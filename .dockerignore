@@ -1,0 +1,32 @@
+# Keep the build context small — only backend/ and frontend/ source feed the
+# Dockerfile. Everything else is either runtime-mounted, irrelevant, or huge.
+
+.git
+.github
+.gitignore
+.idea
+.vscode
+
+# Frontend transient
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# Python transient
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+
+# Workspace + data (bind-mounted at runtime, not baked in)
+openclaw-workspace
+labmind-data
+instruments
+vix
+mcp_server
+docs
+
+# Editor noise
+*.swp
+.DS_Store
+Thumbs.db

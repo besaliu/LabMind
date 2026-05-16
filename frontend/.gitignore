@@ -1,0 +1,16 @@
+# Build output
+dist/
+node_modules/
+
+# TypeScript incremental build cache (composite project)
+*.tsbuildinfo
+
+# Compile artifacts from `tsc -b` against vite.config.ts (composite mode emits)
+vite.config.js
+vite.config.d.ts
+
+# Editor + OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

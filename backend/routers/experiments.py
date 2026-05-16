@@ -6,6 +6,7 @@ from fastapi.responses import PlainTextResponse
 from typing import Optional
 
 from models import FinalizePayload
+import dashboard
 import storage
 
 router = APIRouter(prefix="/api/experiments", tags=["experiments"])
@@ -150,6 +151,16 @@ def finalize_experiment(run_id: str, payload: FinalizePayload):
     storage.set_active_run_id(None)
 
     return {"ok": True, "run_id": run_id}
+
+
+# ---------------------------------------------------------------------------
+# Dashboard bundle — pre-processed payload for the React timeline UI
+# ---------------------------------------------------------------------------
+
+@router.get("/{run_id}/dashboard_bundle")
+def get_dashboard_bundle(run_id: str):
+    _assert_run_exists(run_id)
+    return dashboard.build_bundle(run_id)
 
 
 # ---------------------------------------------------------------------------

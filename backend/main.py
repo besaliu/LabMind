@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from routers import analytics, instruments, experiments
@@ -22,6 +23,32 @@ app.include_router(experiments.router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# React dashboard SPA — mounted at /dashboard when its build artifact exists.
+# In dev: Vite serves the frontend on :5173 (the dist folder won't be here),
+# and this block is a no-op. In prod: backend Dockerfile copies the Vite
+# build to ./frontend_dist, and we serve it from FastAPI.
+# ---------------------------------------------------------------------------
+
+DASHBOARD_DIST = Path(__file__).parent / "frontend_dist"
+DASHBOARD_INDEX = DASHBOARD_DIST / "index.html"
+
+if DASHBOARD_INDEX.exists():
+    # /dashboard/assets/* → bundled CSS/JS chunks (hashed filenames)
+    app.mount(
+        "/dashboard/assets",
+        StaticFiles(directory=DASHBOARD_DIST / "assets"),
+        name="dashboard-assets",
+    )
+
+    @app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/dashboard/{path:path}", response_class=HTMLResponse, include_in_schema=False)
+    def dashboard_spa(path: str = ""):
+        # React Router handles the path client-side — always return index.html
+        # for any /dashboard/* path that didn't match /dashboard/assets/*.
+        return FileResponse(DASHBOARD_INDEX)
 
 
 @app.get("/", response_class=HTMLResponse)
