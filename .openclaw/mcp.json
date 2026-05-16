@@ -1,14 +1,7 @@
 {
   "mcpServers": {
     "labmind": {
-      "command": "python3",
-      "args": ["mcp_server/server.py"],
-      "cwd": "${workspaceRoot}",
-      "env": {
-        "LABMIND_DATA": "labmind-data",
-        "CATALOG_DIR": "instruments/catalog",
-        "BACKEND_URL": "http://localhost:8000"
-      }
+      "url": "http://localhost:8001/sse"
     }
   }
 }

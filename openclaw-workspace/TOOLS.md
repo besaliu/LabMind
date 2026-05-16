@@ -40,7 +40,7 @@ Call via HTTP when MCP tools don't cover the need:
 | Service | Port |
 |---------|------|
 | FastAPI backend | 8000 |
-| FastMCP server | 8001 |
+| FastMCP server (SSE) | 8001 |
 | temp_controller_01 | 8101 |
 | ph_probe_01 | 8102 |
 | microscopy_imager_01 | 8103 |

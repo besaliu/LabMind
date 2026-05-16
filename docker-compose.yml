@@ -16,6 +16,22 @@ services:
       timeout: 5s
       retries: 3
 
+  mcp:
+    build: ./mcp_server
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./labmind-data:/labmind-data
+      - ./instruments:/instruments
+    environment:
+      - LABMIND_DATA=/labmind-data
+      - CATALOG_DIR=/instruments/catalog
+      - BACKEND_URL=http://backend:8000
+      - MCP_PORT=8001
+    depends_on:
+      backend:
+        condition: service_healthy
+
   vix-temp-controller:
     build: ./vix
     command: python temp_controller.py --port 8101
