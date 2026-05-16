@@ -60,28 +60,7 @@ git clone https://github.com/besaliu/LabMind.git ~/LabMind
 cd ~/LabMind
 ```
 
-### 2. Create required path symlinks
-
-The MCP server runs **outside Docker** (OpenClaw spawns it directly) and expects two absolute paths. Create symlinks so Docker containers and the MCP server see the same data:
-
-```bash
-sudo ln -s ~/LabMind/labmind-data /labmind-data
-sudo ln -s ~/LabMind/instruments /instruments
-```
-
-Verify:
-
-```bash
-ls /labmind-data/experiments    # should list run_001, run_002
-ls /instruments/catalog         # should list temp_controller.yaml, ph_probe.yaml, microscopy_imager.yaml
-```
-
-If you cannot create symlinks under `/` (some hardened systems block this even with `sudo`), the fallback is to edit `.openclaw/mcp.json` and `docker-compose.yml` to point at the repo-relative paths instead:
-
-- In `.openclaw/mcp.json`, set `LABMIND_DATA` and `CATALOG_DIR` to absolute paths inside your clone (e.g. `/home/<user>/LabMind/labmind-data`).
-- In `docker-compose.yml`, the volume mounts (`./labmind-data:/labmind-data` and `./instruments:/instruments`) already use repo-relative paths and need no change.
-
-### 3. Pull the chat model
+### 2. Pull the chat model
 
 ```bash
 # Chat model — should already exist if your Spark was pre-provisioned
@@ -93,14 +72,14 @@ ollama run nemotron-3-super:latest "Hello"
 
 Configure OpenClaw/Nemoclaw inference to use the chat-model tag (during onboarding choose **Local Ollama**, or at runtime: `openshell inference set --provider ollama --model nemotron-3-super:latest`). The repo does not pin the model in `.openclaw/` — only MCP and sandbox settings live there.
 
-### 4. Install MCP server dependencies
+### 3. Install MCP server dependencies
 
 ```bash
 pip install -r mcp_server/requirements.txt
 python3 --version   # must be 3.10+
 ```
 
-### 5. Start backend services
+### 4. Start backend services
 
 ```bash
 docker compose up -d --build
@@ -121,7 +100,7 @@ curl -s http://localhost:8000/health                       # {"status":"ok"}
 curl -s http://localhost:8000/api/instruments | head -c 200 # should list the three vix instruments after ~30s
 ```
 
-### 6. Start OpenClaw
+### 5. Start OpenClaw
 
 From the repo root:
 
@@ -140,7 +119,7 @@ openclaw mcp set
 # use the command, args, cwd, and env values from .openclaw/mcp.json
 ```
 
-### 7. Access the UI
+### 6. Access the UI
 
 **Experiment upload** (built into the backend, no separate dashboard):
 
@@ -229,7 +208,7 @@ LabMind/
     └── instruments/         # registry.json
 ```
 
-On the Spark host, `labmind-data/` and `instruments/` are also symlinked to `/labmind-data` and `/instruments` for the MCP server.
+The MCP server runs from the repo root and uses relative paths — no symlinks needed.
 
 ### Data layout (per run)
 
@@ -248,8 +227,8 @@ state.json              # active_run_id, pending_run_id
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LABMIND_DATA` | `/labmind-data` | Root data directory |
-| `CATALOG_DIR` | `/instruments/catalog` | Instrument YAML catalog |
+| `LABMIND_DATA` | `labmind-data` | Root data directory (relative to repo root for MCP server; `/labmind-data` inside Docker) |
+| `CATALOG_DIR` | `instruments/catalog` | Instrument YAML catalog (relative to repo root for MCP server; `/instruments/catalog` inside Docker) |
 | `BACKEND_URL` | `http://localhost:8000` | FastAPI URL (MCP server) |
 
 Defaults are set in `.openclaw/mcp.json` and `docker-compose.yml`.
@@ -258,13 +237,12 @@ Defaults are set in `.openclaw/mcp.json` and `docker-compose.yml`.
 
 **Dynamic instrument tools missing in OpenClaw**
 
-- Symlink check: `ls -l /instruments` must point to `~/LabMind/instruments`.
-- Catalog files: `ls /instruments/catalog/` must list the three shipped YAMLs.
-- Restart OpenClaw — the MCP server only spawns at OpenClaw startup, but the file watcher does pick up YAML changes within ~2s while running.
+- Catalog files: `ls instruments/catalog/` from the repo root must list the three shipped YAMLs.
+- Restart OpenClaw — the MCP server only spawns at OpenClaw startup, but the file watcher picks up YAML changes within ~2s while running.
 
 **Backend returns 409 on upload**
 
-- An experiment is already active. Check `cat /labmind-data/state.json`; if you want to abandon it, edit `state.json` to set `"active_run_id": null` and update the run's `metadata.json` `status` to `"completed"` or delete the run directory.
+- An experiment is already active. Check `cat labmind-data/state.json`; if you want to abandon it, edit `state.json` to set `"active_run_id": null` and update the run's `metadata.json` `status` to `"completed"` or delete the run directory.
 
 **VIX instruments not registering**
 
@@ -273,8 +251,8 @@ Defaults are set in `.openclaw/mcp.json` and `docker-compose.yml`.
 
 **MCP server cannot read experiment data**
 
-- `ls /labmind-data/experiments` must list run directories — if it errors, the symlink from Step 2 is missing.
-- Confirm `LABMIND_DATA` and `CATALOG_DIR` in `.openclaw/mcp.json` match the symlink targets.
+- `ls labmind-data/experiments` from the repo root must list run directories.
+- Confirm OpenClaw is launched from the repo root (`cd ~/LabMind && openclaw`) so relative paths in `.openclaw/mcp.json` resolve correctly.
 
 **Form uploader rejects `.md` files**
 
@@ -282,7 +260,7 @@ Defaults are set in `.openclaw/mcp.json` and `docker-compose.yml`.
 
 ## Known limitations
 
-These are documented gaps in the current implementation — they will not "just work" in the demo and require either manual intervention or pending feature work. Full detail and implementation plans in [docs/superpowers/plans/2026-05-16-feature-gaps-handoff.md](docs/superpowers/plans/2026-05-16-feature-gaps-handoff.md).
+These are documented gaps in the current implementation — they will not "just work" in the demo and require either manual intervention or pending feature work.
 
 - **No scripted failure timeline.** VIX scenario phases (`baseline`/`failure`/`recovery`) flip only when you `curl` `POST /scenario/phase` manually or run `python vix/demo_controller.py`. There is no scheduler that injects faults at predetermined offsets after an experiment starts.
 - **No instrument auto-discovery.** The agent can only register MCP tools for instrument types that already have a YAML in `/instruments/catalog/`. The three shipped types (`temp_controller`, `ph_probe`, `microscopy_imager`) work out of the box; a brand-new instrument type referenced in an experiment doc will not get MCP tools generated automatically.
