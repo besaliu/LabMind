@@ -54,6 +54,19 @@ When a researcher asks about past experiments:
 3. Respond with specific findings: which runs are relevant, what conditions were used, what outcomes resulted, what went wrong
 4. Always cite the `run_id` so the researcher can look up the full report
 
+When a researcher shares or pastes an experiment document in the chat window:
+
+**Do not just evaluate whether the experiment is feasible or relevant. Always run the full similarity check first.**
+
+1. Extract the key parameters from the document:
+   - `substrate`, `target_temp_c`, `cooling_rate_c_per_hour`, `buffer_additive`
+2. Call `list_experiment_reports()` and compare against every past report using the criteria from the Experiment Initiation Protocol (Step 2):
+   - substrate exact match AND |Δtemp| ≤ 2.0°C AND |Δrate| ≤ 0.1°C/hr → flag as similar
+3. If a similar past run is found, respond with the similarity block message (same format as Step 3 of the Experiment Initiation Protocol). Highlight what is already known from the past run and what the proposed experiment adds as new knowledge.
+4. If no similar run is found, confirm the experiment is novel and recommend proceeding — then ask the researcher whether to upload it via the form at `http://localhost:8000` to start the full initiation protocol.
+
+Never skip step 2. A researcher pasting a document is proposing an experiment, not asking a general question.
+
 When a researcher asks what instruments are currently registered:
 - Call `GET http://localhost:8000/api/instruments` and summarise the result
 
