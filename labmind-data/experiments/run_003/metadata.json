@@ -1,0 +1,99 @@
+{
+  "run_id": "run_003",
+  "hypothesis": "KDP crystals grown at 35°C with accelerated cooling rate of 1.8°C/hour can achieve target purity if the cooling system holds steady — pushing closer to maximum sustainable cooling speed without thermal shock.",
+  "context": "Follow-up to run_002 (1.5°C/hour ended in partial failure). This run tested whether the cooling system could sustain 1.8°C/hour with no excursions. The hypothesis was that the cooling fault that broke run_002 was specific to that night's hardware state, not the cooling rate itself. Result: failure mode revealed an entirely different issue — a 2-3 minute lag between actual thermal events in the solution and the temperature instrument's reported reading.",
+  "experiment_type": "crystallization",
+  "duration_hours": 8,
+  "instruments": [
+    "temp_controller",
+    "ph_probe",
+    "microscopy_imager"
+  ],
+  "parameters": {
+    "target_temp_c": 35.0,
+    "cooling_rate_c_per_hour": 1.8,
+    "growth_duration_hours": 8,
+    "substrate": "KDP",
+    "solvent": "deionized_water",
+    "initial_concentration_g_per_L": 240.0
+  },
+  "stages": [
+    {
+      "name": "equilibration",
+      "hours": "0-1",
+      "description": "Hold at 35°C. Reduced from the standard 2-hour equilibration because the run targets compressed total duration. Impurity readings up to 25 ppm during this phase are normal."
+    },
+    {
+      "name": "nucleation",
+      "hours": "1-5",
+      "description": "Aggressive 1.8°C/hour cooling. Critical phase — at this rate, the crystal lattice is fragile and any thermal excursion has elevated cracking risk. Treat warning_above as critical."
+    },
+    {
+      "name": "growth",
+      "hours": "5-8",
+      "description": "Final hold at lower temperature. Monitor for delayed dissolution effects from the aggressive cooling phase."
+    }
+  ],
+  "monitoring": {
+    "temperature_c": {
+      "target": 35.0,
+      "warning_above": 37.0,
+      "critical_above": 38.0,
+      "warning_below": 33.0,
+      "critical_below": 31.0,
+      "concern": "At 1.8°C/hour the cooling system is operating near its sustained-rate limit. Temperature readings may LAG behind actual solution temperature by 2-3 minutes due to thermal mass of the probe housing. Trust impurity readings as a leading indicator: a fast impurity rise without temperature change suggests thermal stress that the temperature probe has not yet detected."
+    },
+    "impurity_ppm": {
+      "target": 15.0,
+      "warning_above": 35.0,
+      "critical_above": 50.0,
+      "concern": "Rising impurity means crystals are dissolving. At this cooling rate, an impurity rise can be the FIRST visible sign of a thermal event — the temperature instrument may be 2-3 minutes behind. Do not wait for temperature confirmation if impurity is climbing fast (>5 ppm per minute)."
+    },
+    "ph": {
+      "target": 7.1,
+      "warning_above": 7.4,
+      "critical_above": 7.6,
+      "warning_below": 6.8,
+      "critical_below": 6.5,
+      "concern": "pH is uncorrelated with thermal stress at this scale. If impurity rises while pH is stable, the cause is thermal, not chemical contamination."
+    }
+  },
+  "remediation": {
+    "temperature_high": {
+      "instrument": "temp_controller",
+      "action": "reduce_setpoint",
+      "max_step_c": 1.0,
+      "max_total_adjustment_c": 2.0,
+      "note": "Standard correction. But at this cooling rate, prefer to RAISE setpoint by 0.5°C as a precautionary slow-down rather than reduce."
+    },
+    "impurity_rising_without_temp_change": {
+      "instrument": "temp_controller",
+      "action": "raise_setpoint",
+      "step_c": 0.5,
+      "note": "Counterintuitive but critical: if impurity is climbing and temperature looks fine, the probe is lagging. Raise the setpoint by 0.5°C to preempt the dip that the probe will report 2-3 minutes later. Small step only — overcorrection is worse than the original problem."
+    }
+  },
+  "success_criteria": [
+    {"metric": "crystal_clarity_pct", "target": ">= 90"},
+    {"metric": "final_impurity_ppm", "target": "< 30"},
+    {"metric": "critical_excursions", "target": "0"},
+    {"metric": "instrument_lag_minutes", "target": "< 1 (any lag > 1 minute counts as a sensor reliability failure)"}
+  ],
+  "known_risks": [
+    "At 1.8°C/hour, the temperature probe lags actual solution temperature by 2-3 minutes due to probe thermal mass. Treat fast impurity rises (>5 ppm/min) as a leading thermal indicator regardless of what the temperature reading shows.",
+    "Acting on temperature readings alone at this cooling rate produces interventions 2-3 minutes too late. By the time the temperature instrument shows a problem, crystal surface damage is already occurring.",
+    "The natural reaction to a sudden impurity spike is to add buffer or assume contamination. In this parameter regime, the correct response is almost always thermal (raise setpoint slightly), not chemical.",
+    "Overcorrection is worse than late correction. Aggressive setpoint reductions on top of an undetected thermal event compound the shock."
+  ],
+  "start_time": "2026-05-13T22:00:00Z",
+  "end_time": "2026-05-14T06:08:00Z",
+  "status": "completed",
+  "outcome": "partial_failure",
+  "key_findings": [
+    "Temperature instrument lagged 2-3 minutes behind actual solution thermal events — impurity rose from 22 ppm to 41 ppm while temperature reading remained nominal at 35.1°C, then 90 seconds later the temperature dropped to 34.3°C confirming the thermal event had been underway",
+    "Crystal clarity dropped to 76% — below the 90% target — because the late intervention occurred after surface damage had begun",
+    "Impurity rise rate (>5 ppm/minute) is a more reliable early warning at this cooling rate than the temperature reading itself",
+    "Small +0.5°C setpoint adjustments stabilize the system; the one larger adjustment we tried (-1.0°C, attempting to compensate for cooling overshoot) caused secondary thermal shock and worsened the impurity reading by 8 ppm",
+    "Recommendation for future runs at cooling rates above 1.5°C/hour: use impurity rate-of-change as primary thermal indicator; treat temperature readings as confirmatory rather than leading; prefer small (+0.5°C) preemptive raises over aggressive corrections"
+  ]
+}

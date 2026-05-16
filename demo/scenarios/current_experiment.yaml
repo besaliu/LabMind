@@ -1,0 +1,157 @@
+# Intake document for the live demo run.
+#
+# This is what a researcher uploads via POST /api/experiments/upload before
+# starting an experiment. The backend parses it via yaml.safe_load and writes
+# the contents as the initial metadata.json for a new run directory.
+#
+# Notes on shape:
+#   - status / outcome / end_time / key_findings are intentionally absent —
+#     they get populated by the backend (status: pending → active → completed)
+#     and by the MCP finalize_experiment tool when the run ends.
+#   - duration_hours is 0.083 (5 minutes) for the compressed demo timeline.
+#   - The cooling rate (2.0°C/hour) and target temp (36°C) are deliberately
+#     hotter and faster than any past run in the corpus — this is what gives
+#     the agent something interesting to reason about when it checks history.
+
+hypothesis: >
+  KDP crystals grown at 36°C with aggressive 2.0°C/hour cooling can achieve
+  acceptable purity in a compressed 5-minute pilot run, validating whether
+  the high-cooling-rate regime can be pushed beyond previous attempts
+  (run_002 at 1.5°C/hour, run_003 at 1.8°C/hour) without thermal-shock damage.
+
+context: >
+  Pilot run for the high-cooling-rate parameter regime. Previous attempts at
+  faster cooling have all ended in partial failure — run_002 from a hardware
+  fault, run_003 from a 2-3 minute sensor lag that masked a thermal event.
+  This run pushes one notch further (2.0°C/hour, 36°C target) on the
+  hypothesis that sensor-lag mitigations can keep the run on-rails. The
+  compressed duration means each reading is more load-bearing than usual —
+  the agent has less time to recover from any excursion.
+
+experiment_type: crystallization
+duration_hours: 0.083  # 5 minutes — compressed demo timeline
+instruments:
+  - temp_controller
+  - ph_probe
+  - microscopy_imager
+
+parameters:
+  target_temp_c: 36.0
+  cooling_rate_c_per_hour: 2.0
+  growth_duration_hours: 0.083
+  substrate: KDP
+  solvent: deionized_water
+  initial_concentration_g_per_L: 240.0
+
+stages:
+  - name: equilibration
+    minutes: "0-1"
+    description: >
+      Hold at 36°C. Compressed equilibration. Impurity readings up to 25 ppm
+      during this minute are normal and not a reason to intervene.
+  - name: nucleation
+    minutes: "1-3"
+    description: >
+      Aggressive 2.0°C/hour cooling. Crystal lattice is fragile in this
+      phase — at this cooling rate, the temperature probe lags actual
+      solution temperature by 2-3 minutes (see run_003). Treat fast impurity
+      rate-of-change (>5 ppm/min) as a leading thermal indicator. Do not
+      wait for the temperature reading to confirm.
+  - name: growth
+    minutes: "3-5"
+    description: >
+      Final cooling and crystal maturation. Monitor for delayed dissolution
+      effects from the aggressive cooling phase.
+
+monitoring:
+  temperature_c:
+    target: 36.0
+    warning_above: 38.0
+    critical_above: 39.0
+    warning_below: 34.0
+    critical_below: 32.0
+    concern: >
+      At 2.0°C/hour, the temperature probe lags actual solution temperature
+      by 2-3 minutes. Trust impurity rate-of-change as a leading indicator;
+      treat temperature reading as confirmatory.
+
+  impurity_ppm:
+    target: 15.0
+    warning_above: 35.0
+    critical_above: 50.0
+    concern: >
+      Impurity rising faster than 5 ppm per minute is a thermal warning sign
+      regardless of what the temperature reading shows. If pH is stable,
+      cause is almost certainly thermal — raise setpoint by 0.5°C preemptively
+      rather than waiting for temperature confirmation. Counterintuitive but
+      necessary at this cooling rate.
+
+  ph:
+    target: 7.1
+    warning_above: 7.4
+    critical_above: 7.6
+    warning_below: 6.8
+    critical_below: 6.5
+    concern: >
+      Short run duration (5 min) makes slow pH drift unlikely to be a factor —
+      but check pH stability before attributing impurity spikes to thermal
+      causes. If pH and impurity rise together, suspect contamination, not
+      thermal stress.
+
+remediation:
+  temperature_high:
+    instrument: temp_controller
+    action: reduce_setpoint
+    max_step_c: 0.5
+    max_total_adjustment_c: 1.0
+    note: >
+      At this cooling rate, never reduce setpoint by more than 0.5°C in a
+      single step. Run_003 showed that a -1.0°C reduction during an active
+      thermal event caused secondary shock. Prefer small corrections.
+  impurity_rising_without_temp_change:
+    instrument: temp_controller
+    action: raise_setpoint
+    step_c: 0.5
+    note: >
+      Counterintuitive thermal intervention from run_003. If impurity is
+      climbing fast and temperature reading is still nominal, the probe is
+      lagging. Raise setpoint slightly to preempt the dip the probe will
+      report in 2-3 minutes.
+  contamination_suspected:
+    instrument: ph_probe
+    action: add_buffer
+    start_volume_ml: 3.0
+    note: >
+      Only intervene chemically if pH is moving alongside impurity. Pure
+      thermal events show impurity change with stable pH.
+
+success_criteria:
+  - metric: crystal_clarity_pct
+    target: ">= 85"  # relaxed from 90 because of compressed duration
+  - metric: final_impurity_ppm
+    target: "< 40"
+  - metric: critical_excursions
+    target: "0"
+  - metric: agent_interventions_were_proportionate
+    target: "no setpoint change > 0.5°C, no chemical intervention without pH movement"
+
+known_risks:
+  - >
+    Compressed 5-minute timeline means each reading is high-stakes. There is
+    no time to recover from a misdiagnosed intervention — a wrong setpoint
+    change at minute 2 cannot be undone before the run ends.
+  - >
+    Past runs at lower cooling rates (run_002, run_003) revealed two distinct
+    failure modes: hardware fault and sensor lag. This run pushes faster
+    still, into territory the corpus does not directly cover. The agent
+    should reason by extrapolation from run_003's sensor-lag findings.
+  - >
+    The temperature probe lag observed at 1.8°C/hour (run_003) is expected
+    to be larger at 2.0°C/hour. Estimated lag: 3-4 minutes. The agent should
+    not trust the temperature reading as a primary indicator at any point
+    during the cooling phase.
+  - >
+    Overcorrection is the dominant failure mode at this cooling rate.
+    Aggressive interventions on top of an active thermal event compound the
+    shock (run_003, intervention 2). Keep all setpoint changes small (≤0.5°C)
+    even when readings look alarming.

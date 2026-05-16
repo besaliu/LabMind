@@ -1,0 +1,23 @@
+[
+  {
+    "timestamp": "2026-05-14T01:36:00Z",
+    "action": "set_temperature(instrument_id='temp_controller_01', target_temp_c=35.5)",
+    "reasoning": "Impurity rose from 22.0 ppm to 41.2 ppm in 90 seconds (01:33 → 01:35) — a rate of >12 ppm/min. Temperature reading is still 35.1°C (nominal). pH is stable at 7.1, ruling out chemical contamination. Comparing against run_001 (calm baseline) and run_002 (hardware fault) — neither showed this signature. Hypothesis: the temperature probe is lagging behind an actual thermal event in the solution. The correct response when impurity climbs without a visible temperature change is to RAISE the setpoint by 0.5°C to preempt the dip that the probe will likely report shortly. Small step only — overcorrection would compound the shock.",
+    "instrument_id": "temp_controller_01",
+    "outcome": "At 01:38 (2 minutes later), the temperature reading dropped from 35.1°C to 34.3°C — confirming the thermal event had been underway and the probe had been lagging by 2-3 minutes. The +0.5°C raise was correct in direction but slightly late; surface crystal damage had already begun."
+  },
+  {
+    "timestamp": "2026-05-14T01:48:00Z",
+    "action": "set_temperature(instrument_id='temp_controller_01', target_temp_c=34.0)",
+    "reasoning": "Temperature has continued to drop — 34.3°C at 01:38, now 33.6°C at 01:48. Reducing setpoint by 1.0°C to compensate for what appears to be a cooling system overshoot. Goal: arrest the descent before it reaches critical_below (31.0°C).",
+    "instrument_id": "temp_controller_01",
+    "outcome": "MISTAKE. The reduction triggered secondary thermal shock — impurity rose from 48.1 ppm at 01:42 to 52.4 ppm at 01:48 (crossing critical). At 02:00 we raised the setpoint back to 35.0°C; system stabilized by 02:30 with temperature at 34.6°C and impurity declining. Lesson: at this cooling rate, ANY setpoint reduction larger than 0.5°C while impurity is elevated risks compounding the thermal event. The +0.5°C raise was sufficient; the additional -1.0°C reduction made things worse."
+  },
+  {
+    "timestamp": "2026-05-14T02:00:00Z",
+    "action": "set_temperature(instrument_id='temp_controller_01', target_temp_c=35.0)",
+    "reasoning": "Reverting the -1.0°C reduction. Temperature now 34.1°C, impurity declining (49.6 ppm vs peak 52.4 ppm). Want to return to the original target and let the system stabilize naturally rather than continuing to chase corrections.",
+    "instrument_id": "temp_controller_01",
+    "outcome": "System stabilized by 02:30. Temperature returned to 34.6°C (within nominal), impurity continued declining to 44.3 ppm by 02:30 and 39.2 ppm by 03:30. Crystal surface damage from the 01:35 thermal event was already done — final clarity 76%."
+  }
+]
