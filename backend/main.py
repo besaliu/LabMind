@@ -87,8 +87,6 @@ def upload_page():
     .badge.active { background: #0d2200; color: #76b900; border: 1px solid #76b900; }
     .badge.pending { background: #1a1400; color: #ccaa00; border: 1px solid #554400; }
     .badge.none { color: #444; }
-    .openclaw-link { display: block; text-align: center; margin-top: 20px; color: #555; font-size: 0.8rem; text-decoration: none; }
-    .openclaw-link:hover { color: #76b900; }
     .format-hint { background: #111; border: 1px solid #222; border-radius: 6px; padding: 12px 14px; font-size: 0.78rem; color: #555; margin-bottom: 24px; font-family: monospace; line-height: 1.6; }
     .format-hint strong { color: #888; display: block; margin-bottom: 6px; font-family: system-ui; }
   </style>
@@ -127,7 +125,6 @@ def upload_page():
       <div id="currentStatus"><span class="badge none">No active experiment</span></div>
     </div>
 
-    <a class="openclaw-link" href="http://localhost:18789" target="_blank">Open OpenClaw UI →</a>
   </div>
 
   <script>

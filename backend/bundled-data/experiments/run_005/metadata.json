@@ -1,0 +1,117 @@
+{
+  "run_id": "run_005",
+  "hypothesis": "KDP crystals grown at 36\u00b0C with aggressive 2.0\u00b0C/hour cooling can achieve acceptable purity in a compressed 5-minute pilot run, validating whether the high-cooling-rate regime can be pushed beyond previous attempts (run_002 at 1.5\u00b0C/hour, run_003 at 1.8\u00b0C/hour) without thermal-shock damage.",
+  "context": "Pilot run for the high-cooling-rate parameter regime. Previous attempts at faster cooling have all ended in partial failure \u00e2\u20ac\u201d run_002 from a hardware fault, run_003 from a 2-3 minute sensor lag that masked a thermal event. This run pushes one notch further (2.0\u00c2\u00b0C/hour, 36\u00c2\u00b0C target) on the hypothesis that sensor-lag mitigations can keep the run on-rails. The compressed duration means each reading is more load-bearing than usual \u00e2\u20ac\u201d the agent has less time to recover from any excursion.",
+  "experiment_type": "crystallization",
+  "duration_hours": 8,
+  "instruments": [
+    "temp_controller",
+    "ph_probe",
+    "microscopy_imager"
+  ],
+  "parameters": {
+    "target_temp_c": 36.0,
+    "cooling_rate_c_per_hour": 2.0,
+    "growth_duration_hours": 8,
+    "substrate": "KDP",
+    "solvent": "deionized_water",
+    "initial_concentration_g_per_L": 240.0
+  },
+  "stages": [
+    {
+      "name": "equilibration",
+      "hours": "0-1",
+      "description": "Hold at 36\u00b0C. Impurity readings up to 25 ppm during this phase are normal and not a reason to intervene."
+    },
+    {
+      "name": "nucleation",
+      "hours": "1-5",
+      "description": "Aggressive 2.0\u00c2\u00b0C/hour cooling. Crystal lattice is fragile in this phase \u00e2\u20ac\u201d at this cooling rate, the temperature probe lags actual solution temperature by 2-3 minutes (see run_003). Treat fast impurity rate-of-change (>5 ppm/min) as a leading thermal indicator. Do not wait for the temperature reading to confirm."
+    },
+    {
+      "name": "growth",
+      "hours": "5-8",
+      "description": "Final cooling and crystal maturation. Monitor for delayed dissolution effects from the aggressive cooling phase."
+    }
+  ],
+  "monitoring": {
+    "temperature_c": {
+      "target": 36.0,
+      "warning_above": 38.0,
+      "critical_above": 39.0,
+      "warning_below": 34.0,
+      "critical_below": 32.0,
+      "concern": "At 2.0\u00b0C/hour, the temperature probe lags actual solution temperature by 2-3 minutes. Trust impurity rate-of-change as a leading indicator; treat temperature reading as confirmatory."
+    },
+    "impurity_ppm": {
+      "target": 15.0,
+      "warning_above": 35.0,
+      "critical_above": 50.0,
+      "concern": "Impurity rising faster than 5 ppm per minute is a thermal warning sign regardless of what the temperature reading shows. If pH is stable, cause is almost certainly thermal \u00e2\u20ac\u201d raise setpoint by 0.5\u00c2\u00b0C preemptively rather than waiting for temperature confirmation. Counterintuitive but necessary at this cooling rate."
+    },
+    "ph": {
+      "target": 7.1,
+      "warning_above": 7.4,
+      "critical_above": 7.6,
+      "warning_below": 6.8,
+      "critical_below": 6.5,
+      "concern": "Check pH stability before attributing impurity spikes to thermal causes. If pH and impurity rise together, suspect contamination, not thermal stress. Slow monotonic pH drift over multiple hours (see run_004) is a distinct failure mode \u00e2\u20ac\u201d watch the trend, not just individual readings."
+    }
+  },
+  "remediation": {
+    "temperature_high": {
+      "instrument": "temp_controller",
+      "action": "reduce_setpoint",
+      "max_step_c": 0.5,
+      "max_total_adjustment_c": 1.0,
+      "note": "At this cooling rate, never reduce setpoint by more than 0.5\u00b0C in a single step. Run_003 showed that a -1.0\u00b0C reduction during an active thermal event caused secondary shock. Prefer small corrections."
+    },
+    "impurity_rising_without_temp_change": {
+      "instrument": "temp_controller",
+      "action": "raise_setpoint",
+      "step_c": 0.5,
+      "note": "Counterintuitive thermal intervention from run_003. If impurity is climbing fast and temperature reading is still nominal, the probe is lagging. Raise setpoint slightly to preempt the dip the probe will report in 2-3 minutes."
+    },
+    "contamination_suspected": {
+      "instrument": "ph_probe",
+      "action": "add_buffer",
+      "start_volume_ml": 3.0,
+      "note": "Only intervene chemically if pH is moving alongside impurity. Pure thermal events show impurity change with stable pH."
+    }
+  },
+  "success_criteria": [
+    {
+      "metric": "crystal_clarity_pct",
+      "target": ">= 85"
+    },
+    {
+      "metric": "final_impurity_ppm",
+      "target": "< 40"
+    },
+    {
+      "metric": "critical_excursions",
+      "target": "0"
+    },
+    {
+      "metric": "agent_interventions_were_proportionate",
+      "target": "no setpoint change > 0.5\u00b0C, no chemical intervention without pH movement"
+    }
+  ],
+  "known_risks": [
+    "Compressed timeline means each reading is high-stakes. There is no time to recover from a misdiagnosed intervention.",
+    "Past runs at lower cooling rates (run_002, run_003) revealed two distinct failure modes: hardware fault and sensor lag. This run pushes faster still.",
+    "The temperature probe lag observed at 1.8\u00b0C/hour (run_003) is expected to be larger at 2.0\u00b0C/hour. Estimated lag: 3-4 minutes. Do not trust the temperature reading as a primary indicator during the cooling phase.",
+    "Overcorrection is the dominant failure mode at this cooling rate. Keep all setpoint changes small (\u00e2\u2030\u00a40.5\u00c2\u00b0C) even when readings look alarming."
+  ],
+  "start_time": "2026-05-17T02:00:00Z",
+  "end_time": "2026-05-17T10:00:00Z",
+  "status": "completed",
+  "outcome": "success",
+  "key_findings": [
+    "Detected sensor-lag thermal event at hour 3:05 (impurity rate-of-change exceeded 5 ppm/min with stable pH) \u00e2\u20ac\u201d preemptive +0.5\u00c2\u00b0C setpoint raise applied per run_003 lesson; temperature dip confirmed in instrument reading 3 minutes after intervention",
+    "Detected slow pH drift at hour 5:05 (monotonic +0.20 rise over 5 hours, matching run_004 signature) \u00e2\u20ac\u201d preemptive 3ml buffer addition arrested drift before any threshold breach",
+    "Both interventions proportionate (\u00e2\u2030\u00a40.5\u00c2\u00b0C / \u00e2\u2030\u00a43ml) per learned overcorrection-avoidance heuristic from run_003",
+    "Final crystal clarity 91% \u00e2\u20ac\u201d above 85% target; final impurity 10 ppm \u00e2\u20ac\u201d well below 40 ppm threshold; zero critical excursions",
+    "First successful KDP run at cooling rate \u00e2\u2030\u00a52.0\u00c2\u00b0C/hour; validates the combined run_003 + run_004 heuristics in a regime no prior corpus run reached"
+  ]
+}

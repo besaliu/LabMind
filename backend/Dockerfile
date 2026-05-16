@@ -19,6 +19,8 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
+# Dashboard demo: run_005 experiment data (see backend/bundled-data/)
+COPY backend/bundled-data /labmind-data
 COPY --from=frontend /build/dist ./frontend_dist
 
 EXPOSE 8000
