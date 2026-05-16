@@ -49,11 +49,26 @@ Runs when a researcher uploads an experiment document via the dashboard.
 
 Poll `GET http://localhost:8000/api/experiments/current`. If `"status": "pending"`, a researcher is waiting for your assessment.
 
-**Step 2 — RAG similarity check**
+**Step 2 — Similarity check**
 
-Call `query_rag(query=<hypothesis from metadata>, top_k=3)`.
-- All scores below 0.85 → proceed to Step 4
-- Any score ≥ 0.85 → go to Step 3
+Call `list_experiment_reports()` to retrieve all past experiment reports.
+
+Extract the new experiment's key parameters from its metadata:
+
+    new_substrate = metadata["parameters"]["substrate"]
+    new_temp     = metadata["parameters"]["target_temp_c"]
+    new_rate     = metadata["parameters"]["cooling_rate_c_per_hour"]
+
+For each past report compare its `front_matter` against the new experiment. **Flag as similar** if ALL three match:
+
+- `front_matter.substrate` == `new_substrate` (exact match)
+- `abs(front_matter.target_temp_c - new_temp)` ≤ 2.0
+- `abs(front_matter.cooling_rate_c_per_hour - new_rate)` ≤ 0.1
+
+If no past report matches all three criteria → proceed to Step 4.
+If one or more match → go to Step 3.
+
+Note: `buffer_additive` is NOT a blocking criterion — surface it as a key difference in Step 3, not a reason to skip the block.
 
 **Step 3 — Block and ask for confirmation**
 
@@ -62,17 +77,18 @@ Output this in chat and wait for researcher reply:
 ```
 ⚠️ I found a very similar experiment before starting {run_id}.
 
-Most similar past run: {past_run_id} (similarity: {score:.0%})
-Summary: {summary}
-Key difference from your proposal: {key_differences}
+Most similar past run: {past_run_id}
+Summary: {summary from report body}
+Key differences from your proposal: {list what differs — e.g. buffer_additive}
 
-Recommendation: consider adjusting {parameter} to differentiate this run.
+Recommendation: consider adjusting {parameter} to differentiate this run
+and produce new knowledge rather than repeating a prior result.
 
 Type "proceed" to start anyway, or describe what's different and I'll re-check.
 ```
 
 - Researcher types "proceed" → call `POST /api/experiments/{run_id}/confirm`, continue to Step 4
-- Researcher explains a difference → re-run `query_rag` with updated context, repeat Step 3
+- Researcher explains a difference → call `list_experiment_reports()` again and re-run the comparison with the updated context, repeat Step 3
 - Researcher cancels → do nothing
 
 **Step 4 — Register instruments**

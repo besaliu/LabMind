@@ -6,14 +6,15 @@ Skills define _how_ tools work. This file is for _your_ specifics — the LabMin
 
 | Tool | Purpose |
 |------|---------|
-| `query_rag(query, top_k)` | Search past experiments by semantic similarity |
+| `list_experiment_reports()` | Read all past experiment reports (front matter + body) for similarity comparison |
 | `get_experiment(run_id)` | Read experiment metadata and status |
 | `get_temperature_curve(run_id)` | Read temperature readings over time |
 | `get_impurity_log(run_id)` | Read impurity/pH readings over time |
 | `get_microscopy_image(run_id)` | Read latest microscopy image (base64 PNG) |
+| `get_microscopy_log(run_id)` | Read clarity_pct and defect_count time-series |
 | `compare_runs(run_a, run_b)` | Side-by-side comparison of two runs |
 | `log_intervention(run_id, action, reasoning)` | Append an action to the audit trail |
-| `finalize_experiment(run_id, report, outcome, key_findings)` | Persist morning report and trigger RAG ingestion |
+| `finalize_experiment(run_id, report, outcome, key_findings)` | Persist morning report with structured front matter |
 
 ## Dynamic Instrument Tools
 
@@ -31,7 +32,7 @@ Examples:
 Call via HTTP when MCP tools don't cover the need:
 
 - `GET http://localhost:8000/api/experiments/current` — current experiment state
-- `POST http://localhost:8000/api/experiments/{run_id}/confirm` — confirm experiment after RAG block
+- `POST http://localhost:8000/api/experiments/{run_id}/confirm` — confirm experiment after similarity block
 - `GET http://localhost:8000/api/instruments` — list registered instruments
 
 ## Port Assignments
