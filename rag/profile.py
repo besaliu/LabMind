@@ -28,7 +28,7 @@ def build_profile(run_id: str, data_root: str | os.PathLike[str]) -> ProfileDoc:
     metadata = _load_metadata(run_dir / "metadata.json")
     temp_stats = _temp_stats(run_dir / "temp.csv", metadata)
     impurity_stats = _impurity_stats(run_dir / "impurity.csv")
-    microscopy_labels = _microscopy_labels(run_dir / "microscopy.json")
+    microscopy_stats = _microscopy_stats(run_dir / "microscopy.csv")
     interventions = _intervention_lines(run_dir / "interventions.json")
     report_body = _load_report(run_dir / "report.md")
 
@@ -36,7 +36,7 @@ def build_profile(run_id: str, data_root: str | os.PathLike[str]) -> ProfileDoc:
         metadata=metadata,
         temp_stats=temp_stats,
         impurity_stats=impurity_stats,
-        microscopy_labels=microscopy_labels,
+        microscopy_stats=microscopy_stats,
         interventions=interventions,
         report_body=report_body,
     )
@@ -136,49 +136,38 @@ def _trend(values: list[float]) -> str:
     return "flat"
 
 
-def _microscopy_labels(path: Path) -> list[str]:
-    """Normalize microscopy.json into a stable, comma-joinable label list.
+def _microscopy_stats(path: Path) -> dict[str, Any]:
+    """Compute clarity and defect statistics from microscopy.csv.
 
-    microscopy.json values vary in shape across runs:
-        {"cracked": true, "clarity": 0.94, "color": "clear"}
-    Normalization rule:
-      - boolean values: emit the key if true
-      - numeric values: emit "{key}_high" if >= 0.5, "{key}_low" otherwise
-      - string values: emit "{key}_{value}"
-      - lists: emit each non-empty stringified element
-    Empty/missing file returns an empty list.
+    microscopy.csv is written by the VIX microscopy_imager on every analytics
+    tick and by capture_image calls during active experiments. Columns:
+        timestamp, clarity_pct, defect_count
+
+    Returns a stats dict parallel to _temp_stats and _impurity_stats.
+    Missing or empty file returns {"present": False} so the profile line is
+    omitted rather than showing meaningless zeros.
     """
     if not path.exists():
-        return []
-    try:
-        with path.open() as f:
-            raw = json.load(f)
-    except json.JSONDecodeError:
-        return []
-    if not isinstance(raw, dict):
-        return []
-
-    # Keys that hold metadata not useful for similarity (timestamps, ids).
-    NOISE_KEYS = {"captured_at", "timestamp", "id", "run_id"}
-
-    labels: list[str] = []
-    for key in sorted(raw.keys()):  # stable order
-        if key in NOISE_KEYS:
-            continue
-        value = raw[key]
-        if isinstance(value, bool):
-            if value:
-                labels.append(key)
-        elif isinstance(value, (int, float)):
-            labels.append(f"{key}_high" if float(value) >= 0.5 else f"{key}_low")
-        elif isinstance(value, str) and value:
-            labels.append(f"{key}_{value}")
-        elif isinstance(value, list):
-            for item in value:
-                s = str(item).strip()
-                if s:
-                    labels.append(s)
-    return labels
+        return {"present": False}
+    clarity: list[float] = []
+    defects: list[int] = []
+    with path.open() as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                clarity.append(float(row["clarity_pct"]))
+                defects.append(int(float(row["defect_count"])))
+            except (KeyError, ValueError):
+                continue
+    if not clarity:
+        return {"present": False}
+    arr = np.array(clarity)
+    return {
+        "present": True,
+        "clarity_mean": float(arr.mean()),
+        "clarity_min": float(arr.min()),
+        "peak_defect_count": max(defects),
+    }
 
 
 def _intervention_lines(path: Path) -> dict[str, Any]:
@@ -203,7 +192,7 @@ def _render_profile_text(
     metadata: dict[str, Any],
     temp_stats: dict[str, Any],
     impurity_stats: dict[str, Any],
-    microscopy_labels: list[str],
+    microscopy_stats: dict[str, Any],
     interventions: dict[str, Any],
     report_body: str,
 ) -> str:
@@ -237,9 +226,12 @@ def _render_profile_text(
             f"pH range=[{impurity_stats['ph_min']:.2f}, {impurity_stats['ph_max']:.2f}], "
             f"saturation trend={impurity_stats['saturation_trend']}"
         )
-    lines.append(
-        f"Microscopy observations: {', '.join(microscopy_labels) if microscopy_labels else 'none'}"
-    )
+    if microscopy_stats.get("present"):
+        lines.append(
+            f"Microscopy: clarity_mean={microscopy_stats['clarity_mean']:.1f}%, "
+            f"clarity_min={microscopy_stats['clarity_min']:.1f}%, "
+            f"peak_defects={microscopy_stats['peak_defect_count']}"
+        )
     intervention_summary = (
         "; ".join(interventions["descriptions"]) if interventions["descriptions"] else "none"
     )

@@ -100,7 +100,22 @@ Poll `GET http://localhost:8000/api/experiments/current`. If the response contai
 
 **Step 2 — RAG similarity check**
 
-Call `query_rag(query=<hypothesis from metadata>, top_k=3)`.
+Build a structured query string from the pending run's metadata and call `query_rag`:
+
+```
+params = metadata["parameters"]
+query = (
+    f"Hypothesis: {metadata['hypothesis']}\n"
+    f"Instruments: {', '.join(metadata['instruments'])}\n"
+    f"Parameters: target_temp={params.get('target_temp_c', '?')}C, "
+    f"cooling_rate={params.get('cooling_rate_c_per_hour', '?')}C/hr, "
+    f"substrate={params.get('substrate', '?')}, "
+    f"growth_duration={params.get('growth_duration_hours', '?')}h"
+)
+query_rag(query=query, top_k=3)
+```
+
+Using this structured format (rather than just the hypothesis text) ensures the similarity search can compute meaningful `key_differences` between the new proposal and past runs.
 
 - If `results` is empty or all similarity scores are below 0.85: proceed to Step 4.
 - If any result has similarity ≥ 0.85: go to Step 3.

@@ -23,7 +23,7 @@ def test_build_profile_run_001(tmp_path, isolated_data_root):
         "Risks:",
         "Temperature:",
         "Impurity:",
-        "Microscopy observations:",
+        "Microscopy:",
         "Interventions:",
         "Report:",
     ):
@@ -65,18 +65,35 @@ def test_build_profile_missing_run_raises(isolated_data_root):
         build_profile("run_does_not_exist", isolated_data_root)
 
 
-def test_microscopy_labels_normalized(isolated_data_root, tmp_path):
-    """If microscopy.json is present, its labels appear in the profile text."""
+def test_microscopy_stats_from_csv(isolated_data_root):
+    """microscopy.csv stats appear in the profile text."""
     run_dir = isolated_data_root / "experiments" / "run_001"
-    micro = run_dir / "microscopy.json"
-    micro.write_text(
-        '{"cracked": true, "clarity": 0.94, "color": "clear", "inclusions": false}'
+    micro_csv = run_dir / "microscopy.csv"
+    micro_csv.write_text(
+        "timestamp,clarity_pct,defect_count\n"
+        "2026-05-11T00:00:00Z,92.0,0\n"
+        "2026-05-11T00:30:00Z,93.0,1\n"
+        "2026-05-11T01:00:00Z,94.0,0\n"
     )
 
     p = build_profile("run_001", isolated_data_root)
-    # Sorted-key order: clarity → color → cracked → inclusions (false → skipped)
-    assert "Microscopy observations: clarity_high, color_clear, cracked" in p.text
-    assert "inclusions" not in p.text
+    assert "Microscopy:" in p.text
+    assert "clarity_mean=" in p.text
+    assert "clarity_min=" in p.text
+    assert "peak_defects=" in p.text
+    # clarity_min should be 92.0 from the rows above
+    assert "clarity_min=92.0%" in p.text
+    assert "peak_defects=1" in p.text
+
+
+def test_microscopy_stats_missing_csv(isolated_data_root):
+    """If microscopy.csv is absent the Microscopy line is omitted (no crash)."""
+    run_dir = isolated_data_root / "experiments" / "run_001"
+    csv_path = run_dir / "microscopy.csv"
+    csv_path.unlink(missing_ok=True)
+
+    p = build_profile("run_001", isolated_data_root)
+    assert "Microscopy:" not in p.text
 
 
 def test_temperature_stats_count_violations(isolated_data_root, tmp_path):
