@@ -105,22 +105,28 @@ Call `query_rag(query=<hypothesis from metadata>, top_k=3)`.
 - If `results` is empty or all similarity scores are below 0.85: proceed to Step 4.
 - If any result has similarity ≥ 0.85: go to Step 3.
 
-**Step 3 — Block and notify (similar experiment found)**
+**Step 3 — Block and ask for confirmation (similar experiment found)**
 
-Call `alert_researcher` with a message in this format:
+Output this message directly in the chat — do not call `alert_researcher` here:
 
 ```
-⚠️ Similar experiment found before starting run_{id}.
+⚠️ I found a very similar experiment before starting {run_id}.
 
-Most similar: {run_id} (similarity: {score:.0%})
+Most similar past run: {past_run_id} (similarity: {score:.0%})
 Summary: {summary}
 Key difference from your proposal: {key_differences}
 
-Recommendation: consider adjusting {parameter} to differentiate this run.
-Waiting for your confirmation to proceed.
+Recommendation: consider adjusting {parameter} to differentiate this run
+and produce new knowledge rather than repeating a prior result.
+
+Type "proceed" to start anyway, or describe what's different and I'll re-check.
 ```
 
-Then **stop and wait**. Do not proceed to instrument registration until the researcher confirms via the dashboard (which calls `POST /api/experiments/{run_id}/confirm`). Poll `GET /api/experiments/current` every 30 seconds — when status changes from `pending` to `active`, the researcher has confirmed.
+Then **stop and wait for the researcher to reply in this chat window.** Do not poll, do not call any other tools.
+
+- If the researcher types **"proceed"** (or any clear confirmation): call `POST http://localhost:8000/api/experiments/{run_id}/confirm`, then continue to Step 4.
+- If the researcher explains a difference: call `query_rag` again with the updated context they provided, then repeat this step with the new results.
+- If the researcher says to cancel: do nothing. The pending run will remain in `pending` state and can be cleaned up manually.
 
 **Step 4 — Register instruments**
 
