@@ -20,7 +20,9 @@ def ingest_analytics(payload: AnalyticsPayload):
     elif instrument_type in ("ph_probe", "chemical_stability"):
         storage.append_impurity_row(run_id, payload.timestamp, payload.readings, payload.status)
     elif instrument_type == "microscopy_imager":
-        # image_b64 key expected in readings when imager sends a snapshot
+        # Always write quality metrics to microscopy.csv
+        storage.append_microscopy_row(run_id, payload.timestamp, payload.readings, payload.status)
+        # Save image when capture_image was triggered (image_b64 present)
         import base64
         b64 = payload.readings.get("image_b64")
         if b64:

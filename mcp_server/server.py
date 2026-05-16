@@ -60,6 +60,12 @@ def get_impurity_log(run_id: str) -> List[Dict[str, str]]:
 
 
 @mcp.tool()
+def get_microscopy_log(run_id: str) -> List[Dict[str, str]]:
+    """Return all microscopy quality readings (clarity_pct, defect_count) for a run."""
+    return storage.read_csv(run_id, "microscopy.csv")
+
+
+@mcp.tool()
 def get_microscopy_image(run_id: str) -> Dict[str, Any]:
     """Return the latest microscopy image as base64-encoded PNG."""
     b64 = storage.read_image_b64(run_id)

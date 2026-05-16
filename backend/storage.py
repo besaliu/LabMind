@@ -23,8 +23,9 @@ def _state_file() -> Path:
     return _data() / "state.json"
 
 
-TEMP_CSV_HEADERS     = ["timestamp", "temperature_c", "setpoint_c", "status"]
-IMPURITY_CSV_HEADERS = ["timestamp", "impurity_ppm", "saturation_pct", "ph", "status"]
+TEMP_CSV_HEADERS       = ["timestamp", "temperature_c", "setpoint_c", "status"]
+IMPURITY_CSV_HEADERS   = ["timestamp", "impurity_ppm", "saturation_pct", "ph", "status"]
+MICROSCOPY_CSV_HEADERS = ["timestamp", "clarity_pct", "defect_count", "status"]
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +133,18 @@ def append_impurity_row(run_id: str, timestamp: str, readings: Dict[str, Any], s
             readings.get("impurity_ppm", ""),
             readings.get("saturation_pct", ""),
             readings.get("ph", ""),
+            status,
+        ])
+
+
+def append_microscopy_row(run_id: str, timestamp: str, readings: Dict[str, Any], status: str) -> None:
+    path = run_dir(run_id) / "microscopy.csv"
+    _ensure_csv(path, MICROSCOPY_CSV_HEADERS)
+    with path.open("a", newline="") as f:
+        csv.writer(f).writerow([
+            timestamp,
+            readings.get("clarity_pct", ""),
+            readings.get("defect_count", ""),
             status,
         ])
 

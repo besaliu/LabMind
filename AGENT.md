@@ -19,6 +19,7 @@ You have access to a set of MCP tools provided by the LabMind FastMCP server. Th
 | `get_temperature_curve(run_id)` | Read temperature readings over time |
 | `get_impurity_log(run_id)` | Read impurity/pH readings over time |
 | `get_microscopy_image(run_id)` | Read latest microscopy image (base64 PNG) |
+| `get_microscopy_log(run_id)` | Read clarity_pct and defect_count time-series |
 | `compare_runs(run_a, run_b)` | Side-by-side comparison of two runs |
 | `log_intervention(run_id, action, reasoning)` | Append an action to the audit trail |
 | `finalize_experiment(run_id, report, outcome, key_findings)` | Persist morning report and trigger RAG ingestion |
@@ -180,6 +181,7 @@ Run this protocol on a loop while in Experiment Mode. Check every 60 seconds (or
 Call in parallel:
 - `get_temperature_curve(run_id)` — focus on the last 3-5 rows
 - `get_impurity_log(run_id)` — focus on the last 3-5 rows
+- `get_microscopy_log(run_id)` — focus on the last 3-5 rows
 - `get_experiment(run_id)` — read `monitoring`, `remediation`, `stages`, and `known_risks` from metadata
 
 **Step 2 — Determine current stage**
@@ -233,6 +235,17 @@ log_intervention(
 ```
 
 Then output a concise summary in the chat: what was observed, what stage the experiment is in, what action was taken, and what to watch for next cycle.
+
+**Special case — `clarity_pct` anomaly**
+
+Crystal clarity cannot be directly corrected — it is a symptom. Use this decision tree:
+
+1. Check `get_temperature_curve` — is temperature also anomalous?
+   - **Yes**: fix temperature using `remediation.temperature_high` or `temperature_low`. Clarity will follow if the cause is thermal. Log that clarity drop was the trigger.
+   - **No**: temperature is nominal but clarity is falling — try `remediation.temperature_high` with a small step (0.5°C max) to slow dissolution.
+2. On the next cycle, check `get_microscopy_log` again.
+   - **Recovering**: log the improvement, continue monitoring.
+   - **Still falling after 2 attempts**: output in chat — "⚠️ Crystal clarity at {value}% and declining. Temperature corrections have not reversed the trend. Manual inspection recommended." Do not make further autonomous corrections.
 
 **Step 6 — Verify remediation**
 
