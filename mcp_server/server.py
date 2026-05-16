@@ -97,17 +97,6 @@ def compare_runs(run_a: str, run_b: str) -> Dict[str, Any]:
     return {"run_a": _summarise(run_a), "run_b": _summarise(run_b)}
 
 
-@mcp.tool()
-async def alert_researcher(message: str) -> Dict[str, Any]:
-    """Push a notification to the dashboard alert queue."""
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(f"{BACKEND_URL}/api/alerts", json={"message": message})
-    except Exception:
-        pass  # alert is best-effort; don't fail the agent's flow
-    log.info("ALERT → researcher: %s", message)
-    return {"ok": True, "message": message}
-
 
 @mcp.tool()
 def log_intervention(run_id: str, action: str, reasoning: str) -> Dict[str, Any]:

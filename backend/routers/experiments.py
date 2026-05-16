@@ -53,7 +53,7 @@ async def upload_experiment(doc: UploadFile = File(...)):
 
     # RAG similarity check is the agent's responsibility via the query_rag MCP tool.
     # The agent polls GET /api/experiments/current, sees status=pending, runs the check,
-    # and calls alert_researcher if a similar experiment is found.
+    # and outputs a confirmation prompt in the OpenClaw chat if a similar run is found.
     return {"run_id": run_id, "status": "pending"}
 
 

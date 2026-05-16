@@ -21,7 +21,6 @@ You have access to a set of MCP tools provided by the LabMind FastMCP server. Th
 | `get_microscopy_image(run_id)` | Read latest microscopy image (base64 PNG) |
 | `compare_runs(run_a, run_b)` | Side-by-side comparison of two runs |
 | `log_intervention(run_id, action, reasoning)` | Append an action to the audit trail |
-| `alert_researcher(message)` | Push a notification to the dashboard |
 | `finalize_experiment(run_id, report, outcome, key_findings)` | Persist morning report and trigger RAG ingestion |
 
 **Dynamic instrument tools** are registered automatically when you add YAML entries to `/instruments/catalog/`. They follow the naming pattern `{instrument_type}_{command_name}`, for example:
@@ -107,7 +106,7 @@ Call `query_rag(query=<hypothesis from metadata>, top_k=3)`.
 
 **Step 3 — Block and ask for confirmation (similar experiment found)**
 
-Output this message directly in the chat — do not call `alert_researcher` here:
+Output this message directly in the chat:
 
 ```
 ⚠️ I found a very similar experiment before starting {run_id}.
@@ -233,15 +232,15 @@ log_intervention(
 )
 ```
 
-Then call `alert_researcher` with a concise summary including: what was observed, what stage the experiment is in, what action was taken, and what to watch for.
+Then output a concise summary in the chat: what was observed, what stage the experiment is in, what action was taken, and what to watch for next cycle.
 
 **Step 6 — Verify remediation**
 
-On the next cycle, check whether the parameter has returned toward its target. If the anomaly persists after two remediation attempts on the same instrument:
+On the next cycle, check whether the parameter has returned toward its target. If the anomaly persists after two remediation attempts on the same instrument, output in chat:
 
 ```
-alert_researcher("⚠️ {instrument} remains anomalous after 2 correction attempts. 
-Current reading: {value}. Stage: {stage_name}. Manual inspection may be required.")
+⚠️ {instrument} remains anomalous after 2 correction attempts.
+Current reading: {value}. Stage: {stage_name}. Manual inspection may be required.
 ```
 
 Then continue monitoring without making further automated corrections for that instrument.
