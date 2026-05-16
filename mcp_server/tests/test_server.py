@@ -10,6 +10,7 @@ import json
 import os
 import time
 import pytest
+import yaml
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -54,7 +55,7 @@ def seed_run(isolated_env):
         "outcome": None,
         "key_findings": [],
     }
-    (run / "metadata.json").write_text(json.dumps(meta))
+    (run / "metadata.yaml").write_text(yaml.safe_dump(meta, sort_keys=False))
 
     # temp.csv
     with (run / "temp.csv").open("w", newline="") as f:
@@ -111,7 +112,7 @@ def test_get_temperature_curve_empty_run(isolated_env):
     import server
     data = isolated_env["data"]
     (data / "experiments" / "run_empty").mkdir()
-    (data / "experiments" / "run_empty" / "metadata.json").write_text("{}")
+    (data / "experiments" / "run_empty" / "metadata.yaml").write_text("{}")
     rows = server.get_temperature_curve("run_empty")
     assert rows == []
 
@@ -170,7 +171,7 @@ def test_compare_runs_returns_both_summaries(seed_run, isolated_env):
     run2.mkdir()
     meta2 = {"run_id": "run_002", "hypothesis": "Faster cooling", "status": "completed",
               "outcome": "failure", "instruments": [], "parameters": {}}
-    (run2 / "metadata.json").write_text(json.dumps(meta2))
+    (run2 / "metadata.yaml").write_text(yaml.safe_dump(meta2, sort_keys=False))
     (run2 / "interventions.json").write_text("[]")
 
     result = server.compare_runs(seed_run, "run_002")

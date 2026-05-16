@@ -11,6 +11,8 @@ import tempfile
 from pathlib import Path
 from fastapi.testclient import TestClient
 
+import yaml
+
 
 @pytest.fixture(autouse=True)
 def isolated_data_dir(monkeypatch, tmp_path):
@@ -177,9 +179,9 @@ def test_upload_creates_run_directory(client, isolated_data_dir):
     assert "run_id" in body
     assert body["status"] == "pending"  # RAG check is agent's job via MCP tool
 
-    meta_path = isolated_data_dir / "experiments" / body["run_id"] / "metadata.json"
+    meta_path = isolated_data_dir / "experiments" / body["run_id"] / "metadata.yaml"
     assert meta_path.exists()
-    meta = json.loads(meta_path.read_text())
+    meta = yaml.safe_load(meta_path.read_text())
     assert meta["status"] == "pending"
     assert meta["hypothesis"] == "Grow KDP crystals"
 
@@ -198,7 +200,7 @@ def test_confirm_transitions_to_active(client, isolated_data_dir):
     assert resp.status_code == 200
     assert resp.json()["status"] == "active"
 
-    meta = json.loads((isolated_data_dir / "experiments" / run_id / "metadata.json").read_text())
+    meta = yaml.safe_load((isolated_data_dir / "experiments" / run_id / "metadata.yaml").read_text())
     assert meta["status"] == "active"
     assert meta["start_time"] is not None
 
@@ -265,7 +267,7 @@ def test_finalize_succeeds_when_report_exists(client, active_experiment, isolate
     assert body["ok"] is True
     assert "run_id" in body
 
-    meta = json.loads((isolated_data_dir / "experiments" / active_experiment / "metadata.json").read_text())
+    meta = yaml.safe_load((isolated_data_dir / "experiments" / active_experiment / "metadata.yaml").read_text())
     assert meta["status"] == "completed"
     assert meta["outcome"] == "success"
     assert meta["end_time"] is not None

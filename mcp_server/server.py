@@ -137,7 +137,7 @@ async def finalize_experiment(
 ) -> Dict[str, Any]:
     """Persist the morning report with structured front matter and notify the backend.
 
-    Writes report.md with a YAML front matter block (extracted from metadata.json)
+    Writes report.md with a YAML front matter block (extracted from metadata.yaml)
     prepended to the agent's narrative report. The front matter is what future
     list_experiment_reports() calls use for parameter comparison.
 

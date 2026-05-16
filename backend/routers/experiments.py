@@ -179,7 +179,8 @@ def list_experiments():
 # ---------------------------------------------------------------------------
 
 def _assert_run_exists(run_id: str) -> None:
-    if not (storage.run_dir(run_id) / "metadata.json").exists():
+    d = storage.run_dir(run_id)
+    if not ((d / "metadata.yaml").exists() or (d / "metadata.json").exists()):
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
 
 

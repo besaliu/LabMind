@@ -1,6 +1,6 @@
 """Read-only filesystem helpers for the MCP server.
 The FastAPI backend owns writes to experiment data; the MCP server only reads,
-except for finalize_experiment which writes report.md and updates metadata.json.
+except for finalize_experiment which writes report.md and updates metadata.yaml.
 """
 import csv
 import json
@@ -9,6 +9,8 @@ from base64 import b64encode
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import yaml
 
 
 def _data() -> Path:
@@ -34,12 +36,28 @@ def run_dir(run_id: str) -> Path:
     return _experiments_dir() / run_id
 
 
+def metadata_path(run_id: str) -> Path:
+    """Resolve the metadata file. Prefers metadata.yaml; falls back to legacy metadata.json."""
+    yaml_path = run_dir(run_id) / "metadata.yaml"
+    if yaml_path.exists():
+        return yaml_path
+    return run_dir(run_id) / "metadata.json"
+
+
 def read_metadata(run_id: str) -> Dict[str, Any]:
-    return json.loads((run_dir(run_id) / "metadata.json").read_text())
+    path = metadata_path(run_id)
+    text = path.read_text()
+    if path.suffix == ".yaml":
+        return yaml.safe_load(text)
+    return json.loads(text)
 
 
 def write_metadata(run_id: str, meta: Dict[str, Any]) -> None:
-    (run_dir(run_id) / "metadata.json").write_text(json.dumps(meta, indent=2))
+    yaml_path = run_dir(run_id) / "metadata.yaml"
+    yaml_path.write_text(yaml.safe_dump(meta, sort_keys=False, allow_unicode=True))
+    legacy_json = run_dir(run_id) / "metadata.json"
+    if legacy_json.exists():
+        legacy_json.unlink()
 
 
 def read_csv(run_id: str, filename: str) -> List[Dict[str, str]]:

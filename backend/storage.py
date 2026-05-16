@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
+import yaml
+
 
 def _data() -> Path:
     return Path(os.environ.get("LABMIND_DATA", "/labmind-data"))
@@ -77,12 +79,30 @@ def ensure_run_dir(run_id: str) -> Path:
     return d
 
 
+def metadata_path(run_id: str) -> Path:
+    """Resolve the metadata file. Prefers metadata.yaml; falls back to legacy metadata.json."""
+    yaml_path = run_dir(run_id) / "metadata.yaml"
+    if yaml_path.exists():
+        return yaml_path
+    return run_dir(run_id) / "metadata.json"
+
+
 def read_metadata(run_id: str) -> Dict[str, Any]:
-    return json.loads((run_dir(run_id) / "metadata.json").read_text())
+    path = metadata_path(run_id)
+    text = path.read_text()
+    if path.suffix == ".yaml":
+        return yaml.safe_load(text)
+    return json.loads(text)
 
 
 def write_metadata(run_id: str, meta: Dict[str, Any]) -> None:
-    (run_dir(run_id) / "metadata.json").write_text(json.dumps(meta, indent=2))
+    # New writes always go to metadata.yaml. If a legacy metadata.json exists for this
+    # run, remove it after the new file is written so reads are unambiguous.
+    yaml_path = run_dir(run_id) / "metadata.yaml"
+    yaml_path.write_text(yaml.safe_dump(meta, sort_keys=False, allow_unicode=True))
+    legacy_json = run_dir(run_id) / "metadata.json"
+    if legacy_json.exists():
+        legacy_json.unlink()
 
 
 def list_run_ids() -> List[str]:
