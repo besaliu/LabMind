@@ -218,6 +218,61 @@ def list_experiment_reports() -> List[Dict[str, Any]]:
     return results
 
 
+@mcp.tool()
+def execute_code(code: str) -> Dict[str, Any]:
+    """Define and register a new MCP tool from Python code.
+
+    Write a complete Python function (sync or async). It will be registered
+    as an MCP tool under its defined name and immediately callable.
+
+    Available in namespace: httpx, Any, Dict, List, Optional.
+
+    Example:
+        async def my_sensor_read() -> Dict[str, Any]:
+            async with httpx.AsyncClient() as c:
+                r = await c.get("http://localhost:9000/measure")
+                return r.json()
+    """
+    import types
+
+    namespace: Dict[str, Any] = {
+        "httpx": httpx,
+        "Any": Any,
+        "Dict": Dict,
+        "List": List,
+        "Optional": Optional,
+        "asyncio": asyncio,
+    }
+    before = set(namespace.keys())
+    try:
+        exec(compile(code, "<dynamic>", "exec"), namespace)
+    except SyntaxError as e:
+        return {"ok": False, "error": f"Syntax error: {e}"}
+    except Exception as e:
+        return {"ok": False, "error": f"Exec error: {e}"}
+
+    new_fns = [
+        (n, obj)
+        for n, obj in namespace.items()
+        if n not in before and callable(obj) and isinstance(obj, types.FunctionType)
+    ]
+    if not new_fns:
+        return {"ok": False, "error": "No function defined in submitted code"}
+
+    registered = []
+    for name, fn in new_fns:
+        mcp.tool()(fn)
+        _registered_tool_names.add(name)
+        registered.append(name)
+        log.info("execute_code registered tool: %s", name)
+
+    return {
+        "ok": True,
+        "registered_tools": registered,
+        "message": f"Registered {len(registered)} tool(s): {registered}. You can call them immediately.",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Dynamic instrument tool registration via catalog YAML watcher
 # ---------------------------------------------------------------------------

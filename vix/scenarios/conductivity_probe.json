@@ -1,0 +1,24 @@
+{
+  "thresholds": {
+    "conductivity_ms_cm": {"nominal": [9.0, 14.5], "warning": [7.5, 15.5]},
+    "temperature_c":      {"nominal": [33.0, 37.0], "warning": [31.0, 39.0]}
+  },
+  "baseline": {
+    "readings": {
+      "conductivity_ms_cm": {"mean": 12.8, "noise": 0.2},
+      "temperature_c":      {"mean": 35.0, "noise": 0.1}
+    }
+  },
+  "crystallising": {
+    "readings": {
+      "conductivity_ms_cm": {"mean": 8.5, "noise": 0.3},
+      "temperature_c":      {"mean": 34.8, "noise": 0.1}
+    }
+  },
+  "complete": {
+    "readings": {
+      "conductivity_ms_cm": {"mean": 7.2, "noise": 0.1},
+      "temperature_c":      {"mean": 34.7, "noise": 0.05}
+    }
+  }
+}

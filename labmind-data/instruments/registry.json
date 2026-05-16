@@ -10,8 +10,22 @@
       "read_cooling_rate",
       "set_cooling_rate"
     ],
-    "last_seen": "2026-05-16T06:02:13.309219+00:00",
+    "last_seen": "2026-05-16T08:40:43.871689+00:00",
     "status": "online",
     "registered_at": "2026-05-16T06:02:13.309219+00:00"
+  }
+}  "ph_probe_01": {
+    "instrument_id": "ph_probe_01",
+    "type": "ph_probe",
+    "name": "Solution pH and Saturation Probe",
+    "port": 8102,
+    "capabilities": [
+      "read_ph",
+      "read_saturation",
+      "add_buffer"
+    ],
+    "last_seen": "2026-05-16T08:40:43.871767+00:00",
+    "status": "online",
+    "registered_at": "2026-05-16T08:40:43.871767+00:00"
   }
 }

@@ -70,3 +70,16 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  vix-conductivity-probe:
+    build: ./vix
+    command: python conductivity_probe.py --port 8104
+    ports:
+      - "8104:8104"
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - VIX_INTERVAL_SECONDS=30
+      - SCENARIO=baseline
+    depends_on:
+      backend:
+        condition: service_healthy
