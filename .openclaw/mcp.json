@@ -7,8 +7,7 @@
       "env": {
         "LABMIND_DATA": "/labmind-data",
         "CATALOG_DIR": "/instruments/catalog",
-        "BACKEND_URL": "http://localhost:8000",
-        "RAG_SERVICE_URL": "http://localhost:8002"
+        "BACKEND_URL": "http://localhost:8000"
       }
     }
   }

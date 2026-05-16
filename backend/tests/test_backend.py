@@ -19,10 +19,8 @@ def isolated_data_dir(monkeypatch, tmp_path):
     data = tmp_path / "labmind-data"
     (data / "experiments").mkdir(parents=True)
     (data / "instruments").mkdir(parents=True)
-    (data / "chromadb").mkdir(parents=True)
 
     monkeypatch.setenv("LABMIND_DATA", str(data))
-    monkeypatch.setenv("RAG_SERVICE_URL", "http://localhost:19999")  # nothing listens here
     return data
 
 
@@ -263,7 +261,9 @@ def test_finalize_succeeds_when_report_exists(client, active_experiment, isolate
         "key_findings": ["Crystal clarity 94%", "No interventions needed"],
     })
     assert resp.status_code == 200
-    assert resp.json()["ok"] is True
+    body = resp.json()
+    assert body["ok"] is True
+    assert "run_id" in body
 
     meta = json.loads((isolated_data_dir / "experiments" / active_experiment / "metadata.json").read_text())
     assert meta["status"] == "completed"
@@ -306,14 +306,3 @@ def test_get_report_404_before_finalization(client, active_experiment):
     assert resp.status_code == 404
 
 
-# ---------------------------------------------------------------------------
-# RAG proxy — graceful degradation when RAG service is down
-# ---------------------------------------------------------------------------
-
-def test_rag_query_returns_empty_when_service_unavailable(client):
-    resp = client.post("/api/rag/query", json={"query": "crystal growth KDP", "top_k": 3})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert "results" in body
-    assert body["results"] == []
-    assert body["available"] is False

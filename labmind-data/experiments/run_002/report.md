@@ -1,3 +1,19 @@
+---
+run_id: run_002
+experiment_type: crystallization
+substrate: KDP
+target_temp_c: 35.0
+cooling_rate_c_per_hour: 1.5
+buffer_additive: null
+outcome: partial_failure
+key_findings:
+  - Temperature spike at hour 3 (40.1°C) caused by cooling system fault during nucleation — exceeded critical threshold
+  - Agent intervened: reduced setpoint to 32°C; temperature recovered within 8 minutes but crystal damage already occurred
+  - Final impurity 61.4 ppm above 30 ppm target — thermal shock dissolved partially-formed crystals
+  - Crystal clarity 71% — below 90% target; polycrystalline growth observed in microscopy image
+  - Faster cooling rate (1.5°C/hour) not recommended for KDP — nucleation window too narrow to tolerate excursions
+---
+
 # Experiment Report: run_002
 
 **Status:** Completed — Partial Failure

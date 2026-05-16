@@ -1,6 +1,4 @@
 import json
-import os
-import httpx
 import yaml
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, UploadFile, File
@@ -11,8 +9,6 @@ from models import FinalizePayload
 import storage
 
 router = APIRouter(prefix="/api/experiments", tags=["experiments"])
-
-RAG_SERVICE_URL = os.environ.get("RAG_SERVICE_URL", "http://localhost:8002")
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +130,7 @@ def get_report(run_id: str):
 # ---------------------------------------------------------------------------
 
 @router.post("/{run_id}/finalize")
-async def finalize_experiment(run_id: str, payload: FinalizePayload):
+def finalize_experiment(run_id: str, payload: FinalizePayload):
     _assert_run_exists(run_id)
     meta = storage.read_metadata(run_id)
 
@@ -153,9 +149,7 @@ async def finalize_experiment(run_id: str, payload: FinalizePayload):
     storage.write_metadata(run_id, meta)
     storage.set_active_run_id(None)
 
-    ingested = await _trigger_rag_ingest(run_id)
-
-    return {"ok": True, "ingested": ingested, "run_id": run_id}
+    return {"ok": True, "run_id": run_id}
 
 
 # ---------------------------------------------------------------------------
@@ -217,10 +211,3 @@ def _parse_doc(content: str, filename: str) -> dict:
         return {"hypothesis": content[:500]}
 
 
-async def _trigger_rag_ingest(run_id: str) -> bool:
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(f"{RAG_SERVICE_URL}/ingest", json={"run_id": run_id})
-            return resp.status_code == 200
-    except Exception:
-        return False

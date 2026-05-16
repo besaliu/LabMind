@@ -10,25 +10,11 @@ services:
     environment:
       - LABMIND_DATA=/labmind-data
       - CATALOG_DIR=/instruments/catalog
-      - RAG_SERVICE_URL=http://rag:8002
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
       retries: 3
-
-  rag:
-    build: ./rag
-    ports:
-      - "8002:8002"
-    volumes:
-      - ./labmind-data:/labmind-data
-    environment:
-      - LABMIND_DATA=/labmind-data
-      - CHROMADB_PATH=/labmind-data/chromadb
-      - OLLAMA_HOST=http://host.docker.internal:11434
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   vix-temp-controller:
     build: ./vix

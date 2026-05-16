@@ -14,7 +14,7 @@ You have access to a set of MCP tools provided by the LabMind FastMCP server. Th
 
 | Tool | Purpose |
 |------|---------|
-| `query_rag(query, top_k)` | Search past experiments by semantic similarity |
+| `list_experiment_reports()` | Read all past experiment reports with structured parameters and narrative |
 | `get_experiment(run_id)` | Read experiment metadata and status |
 | `get_temperature_curve(run_id)` | Read temperature readings over time |
 | `get_impurity_log(run_id)` | Read impurity/pH readings over time |
@@ -22,7 +22,7 @@ You have access to a set of MCP tools provided by the LabMind FastMCP server. Th
 | `get_microscopy_log(run_id)` | Read clarity_pct and defect_count time-series |
 | `compare_runs(run_a, run_b)` | Side-by-side comparison of two runs |
 | `log_intervention(run_id, action, reasoning)` | Append an action to the audit trail |
-| `finalize_experiment(run_id, report, outcome, key_findings)` | Persist morning report and trigger RAG ingestion |
+| `finalize_experiment(run_id, report, outcome, key_findings)` | Persist morning report with structured front matter |
 
 **Dynamic instrument tools** are registered automatically when you add YAML entries to `/instruments/catalog/`. They follow the naming pattern `{instrument_type}_{command_name}`, for example:
 - `temp_controller_set_temperature(target_temp_c)`
@@ -49,8 +49,8 @@ Available at all times, including during an active overnight experiment.
 When a researcher sends a message in the chat window, respond immediately regardless of what the monitoring loop is doing. Never tell a researcher to wait because you are busy monitoring.
 
 When a researcher asks about past experiments:
-1. Call `query_rag(query=<their question>, top_k=5)`
-2. Review the returned experiment profiles
+1. Call `list_experiment_reports()`
+2. Review the returned reports — use `front_matter` for parameter facts and `body` for narrative detail
 3. Respond with specific findings: which runs are relevant, what conditions were used, what outcomes resulted, what went wrong
 4. Always cite the `run_id` so the researcher can look up the full report
 
@@ -98,27 +98,30 @@ This protocol runs when a researcher has uploaded an experiment document via the
 
 Poll `GET http://localhost:8000/api/experiments/current`. If the response contains `"status": "pending"`, a researcher has uploaded a new experiment doc and is waiting for your assessment.
 
-**Step 2 — RAG similarity check**
+**Step 2 — Similarity check**
 
-Build a structured query string from the pending run's metadata and call `query_rag`:
+Call `list_experiment_reports()` to retrieve all past experiment reports.
 
-```
-params = metadata["parameters"]
-query = (
-    f"Hypothesis: {metadata['hypothesis']}\n"
-    f"Instruments: {', '.join(metadata['instruments'])}\n"
-    f"Parameters: target_temp={params.get('target_temp_c', '?')}C, "
-    f"cooling_rate={params.get('cooling_rate_c_per_hour', '?')}C/hr, "
-    f"substrate={params.get('substrate', '?')}, "
-    f"growth_duration={params.get('growth_duration_hours', '?')}h"
-)
-query_rag(query=query, top_k=3)
-```
+Extract the new experiment's key parameters from its metadata:
 
-Using this structured format (rather than just the hypothesis text) ensures the similarity search can compute meaningful `key_differences` between the new proposal and past runs.
+    params = metadata["parameters"]
+    new_substrate = params.get("substrate")
+    new_temp = params.get("target_temp_c")
+    new_rate = params.get("cooling_rate_c_per_hour")
+    new_buffer = params.get("buffer_additive")  # may be null/absent
 
-- If `results` is empty or all similarity scores are below 0.85: proceed to Step 4.
-- If any result has similarity ≥ 0.85: go to Step 3.
+For each past report, compare its `front_matter` against the new experiment using these criteria.
+**Flag as similar** if ALL of the following match:
+
+- `front_matter.substrate` == `new_substrate` (exact match)
+- `abs(front_matter.target_temp_c - new_temp)` ≤ 2.0
+- `abs(front_matter.cooling_rate_c_per_hour - new_rate)` ≤ 0.1
+
+If no past report matches all three criteria: proceed to Step 4.
+If one or more past reports match: go to Step 3.
+
+Note: `buffer_additive` is NOT a blocking criterion — a different buffer is a key difference
+to surface in the Step 3 message, not a reason to skip the block.
 
 **Step 3 — Block and ask for confirmation (similar experiment found)**
 
@@ -127,9 +130,9 @@ Output this message directly in the chat:
 ```
 ⚠️ I found a very similar experiment before starting {run_id}.
 
-Most similar past run: {past_run_id} (similarity: {score:.0%})
-Summary: {summary}
-Key difference from your proposal: {key_differences}
+Most similar past run: {past_run_id}
+Summary: {summary from report body}
+Key differences from your proposal: {list what differs — e.g. buffer_additive}
 
 Recommendation: consider adjusting {parameter} to differentiate this run
 and produce new knowledge rather than repeating a prior result.
@@ -140,7 +143,7 @@ Type "proceed" to start anyway, or describe what's different and I'll re-check.
 Then **stop and wait for the researcher to reply in this chat window.** Do not poll, do not call any other tools.
 
 - If the researcher types **"proceed"** (or any clear confirmation): call `POST http://localhost:8000/api/experiments/{run_id}/confirm`, then continue to Step 4.
-- If the researcher explains a difference: call `query_rag` again with the updated context they provided, then repeat this step with the new results.
+- If the researcher explains a difference: call `list_experiment_reports()` again and re-run the comparison with the updated context.
 - If the researcher says to cancel: do nothing. The pending run will remain in `pending` state and can be cleaned up manually.
 
 **Step 4 — Register instruments**
@@ -335,7 +338,7 @@ finalize_experiment(
 )
 ```
 
-`key_findings` should be 3-5 concise bullet points that will appear in future RAG similarity searches — make them specific and searchable (include compound names, temperature values, key outcomes).
+`key_findings` should be 3-5 concise bullet points — make them specific and informative — they are embedded in the report's front matter and used by future similarity checks.
 
 ---
 

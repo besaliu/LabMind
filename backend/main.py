@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pathlib import Path
 
-from routers import analytics, instruments, experiments, rag
+from routers import analytics, instruments, experiments
 
 app = FastAPI(title="LabMind Backend", version="0.1.0")
 
@@ -17,7 +17,6 @@ app.add_middleware(
 app.include_router(analytics.router)
 app.include_router(instruments.router)
 app.include_router(experiments.router)
-app.include_router(rag.router)
 
 
 @app.get("/health")

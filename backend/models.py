@@ -17,20 +17,6 @@ class InstrumentRegistration(BaseModel):
     capabilities: list[str] = []
 
 
-class RagQuery(BaseModel):
-    query: str
-    top_k: int = 5
-
-
-class RagResult(BaseModel):
-    run_id: str
-    similarity: float
-    summary: str
-    instruments: list[str] = []
-    status: str = ""
-    key_differences: list[str] = []
-
-
 class FinalizePayload(BaseModel):
     report: str
     outcome: str  # "success" | "partial_failure" | "failure"

@@ -85,3 +85,17 @@ def list_catalog_yamls() -> List[Path]:
     if not d.exists():
         return []
     return list(d.glob("*.yaml")) + list(d.glob("*.yml"))
+
+
+def list_run_ids() -> List[str]:
+    d = _experiments_dir()
+    if not d.exists():
+        return []
+    return sorted(p.name for p in d.iterdir() if p.is_dir())
+
+
+def read_report(run_id: str) -> Optional[str]:
+    path = run_dir(run_id) / "report.md"
+    if not path.exists():
+        return None
+    return path.read_text()

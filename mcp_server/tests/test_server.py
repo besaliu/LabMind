@@ -25,7 +25,6 @@ def isolated_env(monkeypatch, tmp_path):
     monkeypatch.setenv("LABMIND_DATA", str(data))
     monkeypatch.setenv("CATALOG_DIR", str(catalog))
     monkeypatch.setenv("BACKEND_URL", "http://localhost:19998")
-    monkeypatch.setenv("RAG_SERVICE_URL", "http://localhost:19999")
     return {"data": data, "catalog": catalog}
 
 
@@ -38,10 +37,22 @@ def seed_run(isolated_env):
     run.mkdir()
 
     meta = {
-        "run_id": run_id, "hypothesis": "Test KDP growth", "status": "active",
-        "instruments": ["temp_controller"], "parameters": {"target_temp_c": 35.0},
-        "thresholds": {"temp_max_c": 38.0}, "start_time": "2026-05-15T22:00:00Z",
-        "end_time": None, "outcome": None, "key_findings": [],
+        "run_id": run_id,
+        "hypothesis": "Test KDP growth",
+        "status": "active",
+        "experiment_type": "crystallization",
+        "instruments": ["temp_controller"],
+        "parameters": {
+            "target_temp_c": 35.0,
+            "cooling_rate_c_per_hour": 0.5,
+            "substrate": "KDP",
+            "buffer_additive": None,
+        },
+        "thresholds": {"temp_max_c": 38.0},
+        "start_time": "2026-05-15T22:00:00Z",
+        "end_time": None,
+        "outcome": None,
+        "key_findings": [],
     }
     (run / "metadata.json").write_text(json.dumps(meta))
 
@@ -192,6 +203,8 @@ async def test_finalize_writes_report(seed_run, isolated_env):
     assert result["ok"] is True
     report_path = isolated_env["data"] / "experiments" / seed_run / "report.md"
     assert report_path.exists()
+    assert "---" in report_path.read_text()
+    assert "substrate: KDP" in report_path.read_text()
     assert "Morning Report" in report_path.read_text()
 
 
@@ -207,18 +220,6 @@ async def test_finalize_prevents_double_write(seed_run, isolated_env):
         )
     assert result["ok"] is False
     assert "already finalized" in result["error"]
-
-
-# ---------------------------------------------------------------------------
-# Core tool: query_rag — graceful degradation
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_query_rag_returns_empty_when_unavailable():
-    import server
-    result = await server.query_rag("crystal growth KDP", top_k=3)
-    assert result["results"] == []
-    assert result["available"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -274,3 +275,30 @@ def test_register_catalog_missing_fields_skipped(isolated_env):
     server._register_catalog(path)
     after = server.get_registered_tool_names()
     assert before == after  # nothing added
+
+
+# ---------------------------------------------------------------------------
+# Core tool: list_experiment_reports
+# ---------------------------------------------------------------------------
+
+def test_list_experiment_reports_returns_parsed_reports(seed_run, isolated_env):
+    import server
+    data = isolated_env["data"]
+    report_path = data / "experiments" / seed_run / "report.md"
+    report_path.write_text(
+        "---\nrun_id: run_001\nsubstrate: KDP\ntarget_temp_c: 35.0\n"
+        "cooling_rate_c_per_hour: 0.5\nbuffer_additive: null\noutcome: success\n"
+        "key_findings: []\n---\n\n# Report\nAll good."
+    )
+    result = server.list_experiment_reports()
+    assert len(result) == 1
+    assert result[0]["run_id"] == seed_run
+    assert result[0]["front_matter"]["substrate"] == "KDP"
+    assert result[0]["front_matter"]["target_temp_c"] == pytest.approx(35.0)
+    assert "All good." in result[0]["body"]
+
+
+def test_list_experiment_reports_empty_when_no_reports(isolated_env):
+    import server
+    result = server.list_experiment_reports()
+    assert result == []

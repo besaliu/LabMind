@@ -1,3 +1,18 @@
+---
+run_id: run_001
+experiment_type: crystallization
+substrate: KDP
+target_temp_c: 35.0
+cooling_rate_c_per_hour: 0.5
+buffer_additive: null
+outcome: success
+key_findings:
+  - Slow cooling at 0.5°C/hour produced crystal clarity of 94% — establishes baseline for KDP crystallization
+  - Temperature held stable at 35.0°C ± 0.3°C throughout 8-hour run with zero critical excursions
+  - Final impurity 18.2 ppm, well within 30 ppm target
+  - No interventions required — all parameters remained within defined thresholds
+---
+
 # Experiment Report: run_001
 
 **Status:** Completed — Success
