@@ -221,6 +221,27 @@ def test_current_returns_inactive_when_no_experiment(client):
     assert resp.json()["active"] is False
 
 
+def test_current_returns_pending_after_upload(client):
+    doc = b"hypothesis: Grow KDP crystals\ninstruments:\n  - temp_controller\n"
+    run_id = client.post("/api/experiments/upload", files={"doc": ("e.yaml", doc, "text/yaml")}).json()["run_id"]
+
+    resp = client.get("/api/experiments/current")
+    assert resp.status_code == 200
+    assert resp.json()["active"] is False
+    assert resp.json()["status"] == "pending"
+    assert resp.json()["run_id"] == run_id
+
+
+def test_current_clears_pending_after_confirm(client):
+    doc = b"hypothesis: Test\ninstruments:\n  - temp_controller\n"
+    run_id = client.post("/api/experiments/upload", files={"doc": ("e.yaml", doc, "text/yaml")}).json()["run_id"]
+    client.post(f"/api/experiments/{run_id}/confirm")
+
+    resp = client.get("/api/experiments/current")
+    assert resp.json()["status"] == "active"
+    assert resp.json()["active"] is True
+
+
 def test_finalize_rejects_missing_report(client, active_experiment):
     resp = client.post(f"/api/experiments/{active_experiment}/finalize", json={
         "report": "# Report\nSome findings.",

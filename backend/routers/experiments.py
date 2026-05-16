@@ -43,6 +43,7 @@ async def upload_experiment(doc: UploadFile = File(...)):
         "key_findings": [],
     }
     storage.write_metadata(run_id, meta)
+    storage.set_pending_run_id(run_id)
 
     # RAG similarity check is the agent's responsibility via the query_rag MCP tool.
     # The agent polls GET /api/experiments/current, sees status=pending, runs the check,
@@ -66,6 +67,7 @@ def confirm_experiment(run_id: str):
     meta["start_time"] = datetime.now(timezone.utc).isoformat()
     storage.write_metadata(run_id, meta)
     storage.set_active_run_id(run_id)
+    storage.set_pending_run_id(None)
 
     return {"ok": True, "status": "active", "run_id": run_id}
 
@@ -76,24 +78,36 @@ def confirm_experiment(run_id: str):
 
 @router.get("/current")
 def get_current():
+    # Return active run if one exists
     run_id = storage.get_active_run_id()
-    if not run_id:
-        return {"active": False}
+    if run_id:
+        meta = storage.read_metadata(run_id)
+        temp_rows = storage.read_csv_rows(run_id, "temp.csv")
+        impurity_rows = storage.read_csv_rows(run_id, "impurity.csv")
+        interventions = storage.read_interventions(run_id)
+        return {
+            "active": True,
+            "run_id": run_id,
+            "status": "active",
+            "metadata": meta,
+            "latest_temp": temp_rows[-1] if temp_rows else None,
+            "latest_impurity": impurity_rows[-1] if impurity_rows else None,
+            "intervention_count": len(interventions),
+            "recent_interventions": interventions[-3:],
+        }
 
-    meta = storage.read_metadata(run_id)
-    temp_rows = storage.read_csv_rows(run_id, "temp.csv")
-    impurity_rows = storage.read_csv_rows(run_id, "impurity.csv")
-    interventions = storage.read_interventions(run_id)
+    # Return pending run if researcher has uploaded but agent hasn't confirmed yet
+    pending_id = storage.get_pending_run_id()
+    if pending_id:
+        meta = storage.read_metadata(pending_id)
+        return {
+            "active": False,
+            "run_id": pending_id,
+            "status": "pending",
+            "metadata": meta,
+        }
 
-    return {
-        "active": True,
-        "run_id": run_id,
-        "metadata": meta,
-        "latest_temp": temp_rows[-1] if temp_rows else None,
-        "latest_impurity": impurity_rows[-1] if impurity_rows else None,
-        "intervention_count": len(interventions),
-        "recent_interventions": interventions[-3:],
-    }
+    return {"active": False, "status": None}
 
 
 # ---------------------------------------------------------------------------

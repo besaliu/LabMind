@@ -52,6 +52,16 @@ def set_active_run_id(run_id: Optional[str]) -> None:
     write_state(state)
 
 
+def get_pending_run_id() -> Optional[str]:
+    return read_state().get("pending_run_id")
+
+
+def set_pending_run_id(run_id: Optional[str]) -> None:
+    state = read_state()
+    state["pending_run_id"] = run_id
+    write_state(state)
+
+
 # ---------------------------------------------------------------------------
 # Run directory helpers
 # ---------------------------------------------------------------------------
