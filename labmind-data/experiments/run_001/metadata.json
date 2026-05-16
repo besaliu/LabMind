@@ -1,0 +1,26 @@
+{
+  "run_id": "run_001",
+  "hypothesis": "KDP crystals grown at 35°C with a slow cooling rate of 0.5°C/hour will yield larger, higher-purity crystals compared to faster cooling rates",
+  "instruments": ["temp_controller", "ph_probe", "microscopy_imager"],
+  "parameters": {
+    "target_temp_c": 35.0,
+    "cooling_rate_c_per_hour": 0.5,
+    "growth_duration_hours": 8,
+    "substrate": "KDP",
+    "solvent": "deionized_water",
+    "initial_concentration_g_per_L": 240.0
+  },
+  "thresholds": {
+    "temp_max_c": 38.0,
+    "temp_min_c": 32.0,
+    "impurity_max_ppm": 50.0,
+    "ph_min": 6.5,
+    "ph_max": 7.5
+  },
+  "success_criteria": "Crystal clarity > 90%, impurity < 30ppm, no visible cracking or cloudiness in microscopy image",
+  "start_time": "2026-05-10T22:00:00Z",
+  "end_time": "2026-05-11T06:10:00Z",
+  "status": "completed",
+  "outcome": "success",
+  "notes": "Clean run. Temperature held stable throughout. Crystal clarity rated 94%. Recommended as baseline for future KDP runs."
+}

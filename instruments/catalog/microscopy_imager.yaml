@@ -1,0 +1,16 @@
+instrument_type: microscopy_imager
+endpoint_pattern: "http://localhost:{port}"
+port: 8103
+commands:
+  capture_image:
+    method: POST
+    path: /command/capture
+    params: []
+  read_clarity_score:
+    method: GET
+    path: /measure/clarity
+    params: []
+  read_defect_classification:
+    method: GET
+    path: /measure/defects
+    params: []

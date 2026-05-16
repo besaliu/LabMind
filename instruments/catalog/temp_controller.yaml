@@ -1,0 +1,26 @@
+instrument_type: temp_controller
+endpoint_pattern: "http://localhost:{port}"
+port: 8101
+commands:
+  read_temperature:
+    method: GET
+    path: /measure/temperature
+    params: []
+  set_temperature:
+    method: POST
+    path: /command/temperature
+    params:
+      - name: target_temp_c
+        type: float
+        description: Target temperature in Celsius
+  read_cooling_rate:
+    method: GET
+    path: /measure/cooling_rate
+    params: []
+  set_cooling_rate:
+    method: POST
+    path: /command/cooling_rate
+    params:
+      - name: rate_c_per_hour
+        type: float
+        description: Cooling rate in degrees Celsius per hour

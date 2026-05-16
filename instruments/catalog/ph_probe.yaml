@@ -1,0 +1,22 @@
+instrument_type: ph_probe
+endpoint_pattern: "http://localhost:{port}"
+port: 8102
+commands:
+  read_ph:
+    method: GET
+    path: /measure/ph
+    params: []
+  read_saturation:
+    method: GET
+    path: /measure/saturation
+    params: []
+  add_buffer:
+    method: POST
+    path: /command/buffer
+    params:
+      - name: target_ph
+        type: float
+        description: Target pH to correct towards
+      - name: volume_ml
+        type: float
+        description: Volume of buffer solution to add in milliliters

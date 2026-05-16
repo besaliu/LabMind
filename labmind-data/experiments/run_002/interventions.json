@@ -1,0 +1,9 @@
+[
+  {
+    "timestamp": "2026-05-13T01:32:00Z",
+    "action": "set_temperature(instrument_id='temp_controller_01', target_temp_c=32.0)",
+    "reasoning": "Temperature reached 39.2°C at 01:30, exceeding critical threshold of 38°C. Impurity simultaneously spiked to 71.4 ppm (threshold: 50 ppm), indicating thermal shock is dissolving surface crystal layers back into solution. Comparison with run_001 shows temperature was stable at this point in a successful run. Root cause assessment: cooling system fault causing runaway heating. Immediate action: reduce setpoint to 32°C (4°C below current) to arrest the rise without causing additional thermal shock from overcorrection.",
+    "instrument_id": "temp_controller_01",
+    "outcome": "Temperature peaked at 40.1°C at 01:35, then began declining. Returned to nominal range (34.2°C) by 02:00. Impurity remained elevated at 44.8 ppm — crystal surface damage partially irreversible."
+  }
+]

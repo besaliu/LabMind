@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "labmind": {
+      "command": "python",
+      "args": ["mcp_server/server.py"],
+      "env": {
+        "LABMIND_DATA": "/labmind-data",
+        "CATALOG_DIR": "/instruments/catalog"
+      }
+    }
+  }
+}

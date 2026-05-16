@@ -1,0 +1,82 @@
+services:
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./labmind-data:/labmind-data
+      - ./instruments:/instruments
+    environment:
+      - LABMIND_DATA=/labmind-data
+      - CATALOG_DIR=/instruments/catalog
+      - RAG_SIMILARITY_THRESHOLD=0.85
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  mcp-server:
+    build: ./mcp_server
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./labmind-data:/labmind-data
+      - ./instruments:/instruments
+    environment:
+      - LABMIND_DATA=/labmind-data
+      - CATALOG_DIR=/instruments/catalog
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  rag:
+    build: ./rag
+    volumes:
+      - ./labmind-data:/labmind-data
+    environment:
+      - LABMIND_DATA=/labmind-data
+      - CHROMADB_PATH=/labmind-data/chromadb
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - RAG_SIMILARITY_THRESHOLD=0.85
+    network_mode: host
+
+  vix-temp-controller:
+    build: ./vix
+    command: python temp_controller.py --port 8101
+    ports:
+      - "8101:8101"
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - VIX_INTERVAL_SECONDS=30
+      - SCENARIO=baseline
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  vix-ph-probe:
+    build: ./vix
+    command: python ph_probe.py --port 8102
+    ports:
+      - "8102:8102"
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - VIX_INTERVAL_SECONDS=30
+      - SCENARIO=baseline
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  vix-microscopy-imager:
+    build: ./vix
+    command: python microscopy_imager.py --port 8103
+    ports:
+      - "8103:8103"
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - VIX_INTERVAL_SECONDS=60
+      - SCENARIO=baseline
+    depends_on:
+      backend:
+        condition: service_healthy
