@@ -1,0 +1,27 @@
+{
+  "thresholds": {
+    "clarity_pct":  {"nominal": [85.0, 100.0], "warning": [70.0, 100.0]},
+    "defect_count": {"nominal": [0.0, 3.0], "warning": [0.0, 8.0]}
+  },
+  "baseline": {
+    "readings": {
+      "clarity_pct":  {"mean": 92.0, "noise": 1.0},
+      "defect_count": {"mean": 1.0,  "noise": 0.5}
+    },
+    "image": {"base_color": [200, 220, 255], "noise_amp": 5, "defect_blobs": 0}
+  },
+  "failure": {
+    "readings": {
+      "clarity_pct":  {"mean": 62.0, "noise": 3.0},
+      "defect_count": {"mean": 14.0, "noise": 2.0}
+    },
+    "image": {"base_color": [200, 180, 180], "noise_amp": 35, "defect_blobs": 12}
+  },
+  "recovery": {
+    "readings": {
+      "clarity_pct":  {"mean": 86.0, "noise": 1.5},
+      "defect_count": {"mean": 3.0,  "noise": 1.0}
+    },
+    "image": {"base_color": [205, 210, 235], "noise_amp": 12, "defect_blobs": 3}
+  }
+}

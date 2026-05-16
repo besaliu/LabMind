@@ -1,0 +1,27 @@
+{
+  "thresholds": {
+    "temperature_c": {"nominal": [34.0, 36.0], "warning": [33.0, 37.0]},
+    "setpoint_c":    {"nominal": [32.0, 38.0], "warning": [30.0, 40.0]}
+  },
+  "baseline": {
+    "readings": {
+      "temperature_c": {"mean": 35.0, "noise": 0.1},
+      "setpoint_c":    {"mean": 35.0, "noise": 0.0},
+      "cooling_rate_c_per_hour": {"mean": 0.5, "noise": 0.0}
+    }
+  },
+  "failure": {
+    "readings": {
+      "temperature_c": {"mean": 38.5, "noise": 0.3},
+      "setpoint_c":    {"mean": 35.0, "noise": 0.0},
+      "cooling_rate_c_per_hour": {"mean": 0.1, "noise": 0.05}
+    }
+  },
+  "recovery": {
+    "readings": {
+      "temperature_c": {"mean": 35.3, "noise": 0.15},
+      "setpoint_c":    {"mean": 34.0, "noise": 0.0},
+      "cooling_rate_c_per_hour": {"mean": 0.8, "noise": 0.05}
+    }
+  }
+}

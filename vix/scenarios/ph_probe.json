@@ -1,0 +1,28 @@
+{
+  "thresholds": {
+    "ph":             {"nominal": [6.8, 7.4], "warning": [6.5, 7.6]},
+    "saturation_pct": {"nominal": [75.0, 80.0], "warning": [70.0, 85.0]},
+    "impurity_ppm":   {"nominal": [0.0, 30.0], "warning": [0.0, 50.0]}
+  },
+  "baseline": {
+    "readings": {
+      "ph":             {"mean": 7.1, "noise": 0.05},
+      "saturation_pct": {"mean": 78.0, "noise": 1.0},
+      "impurity_ppm":   {"mean": 15.0, "noise": 2.0}
+    }
+  },
+  "failure": {
+    "readings": {
+      "ph":             {"mean": 6.2, "noise": 0.1},
+      "saturation_pct": {"mean": 82.0, "noise": 1.5},
+      "impurity_ppm":   {"mean": 65.0, "noise": 5.0}
+    }
+  },
+  "recovery": {
+    "readings": {
+      "ph":             {"mean": 6.95, "noise": 0.05},
+      "saturation_pct": {"mean": 79.0, "noise": 1.0},
+      "impurity_ppm":   {"mean": 28.0, "noise": 3.0}
+    }
+  }
+}
