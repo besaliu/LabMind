@@ -7,7 +7,6 @@ import asyncio
 import inspect
 import logging
 import os
-from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -22,16 +21,7 @@ log = logging.getLogger(__name__)
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
-
-@asynccontextmanager
-async def _lifespan(server):
-    for yaml_path in storage.list_catalog_yamls():
-        _register_catalog(str(yaml_path))
-    asyncio.create_task(_watch_catalog())
-    yield
-
-
-mcp = FastMCP("labmind", lifespan=_lifespan)
+mcp = FastMCP("labmind")
 
 # Track which catalog files and tool names have been registered
 _registered_catalogs: set = set()
@@ -313,6 +303,21 @@ async def _watch_catalog() -> None:
                 _register_catalog(changed_path)
 
 
+# ---------------------------------------------------------------------------
+# Startup: load existing catalog entries, then start the watcher
+# ---------------------------------------------------------------------------
+
+async def _startup() -> None:
+    for yaml_path in storage.list_catalog_yamls():
+        _register_catalog(str(yaml_path))
+    asyncio.create_task(_watch_catalog())
+
+
 if __name__ == "__main__":
-    port = int(os.environ.get("MCP_PORT", "8001"))
-    mcp.run(transport="sse", host="0.0.0.0", port=port)
+    import asyncio
+
+    async def _main():
+        await _startup()
+        await mcp.run_async()
+
+    asyncio.run(_main())
