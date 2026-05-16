@@ -17,20 +17,6 @@ services:
       timeout: 5s
       retries: 3
 
-  mcp-server:
-    build: ./mcp_server
-    ports:
-      - "8001:8001"
-    volumes:
-      - ./labmind-data:/labmind-data
-      - ./instruments:/instruments
-    environment:
-      - LABMIND_DATA=/labmind-data
-      - CATALOG_DIR=/instruments/catalog
-    depends_on:
-      backend:
-        condition: service_healthy
-
   rag:
     build: ./rag
     volumes:

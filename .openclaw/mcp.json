@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "labmind": {
-      "command": "/opt/homebrew/bin/python3.13",
+      "command": "python3",
       "args": ["mcp_server/server.py"],
       "cwd": "${workspaceRoot}",
       "env": {
@@ -11,12 +11,5 @@
         "RAG_SERVICE_URL": "http://localhost:8002"
       }
     }
-  },
-  "agent": {
-    "instructionsFile": "AGENT.md",
-    "model": "nemotron-super-120b",
-    "contextWindow": 1000000,
-    "reasoningBudget": "dynamic",
-    "temperature": 0.2
   }
 }

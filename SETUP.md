@@ -32,11 +32,18 @@ ollama run nemotron-super-120b "Hello"
 
 ## 2. Install MCP server dependencies
 
-The MCP server runs outside Docker so OpenClaw can spawn it directly.
+The MCP server runs **outside Docker** — OpenClaw spawns it directly via `.openclaw/mcp.json`. It requires Python 3.10+ available as `python3` on your PATH.
 
 ```bash
 cd mcp_server
 pip install -r requirements.txt
+cd ..
+```
+
+Verify the right Python is used:
+
+```bash
+python3 --version   # must be 3.10 or higher
 ```
 
 `requirements.txt` includes `fastmcp`, `httpx`, `pyyaml`, and `watchfiles`.
@@ -56,12 +63,11 @@ This starts:
 | Service | Port | Purpose |
 |---------|------|---------|
 | `backend` | 8000 | FastAPI — experiment upload, state, analytics |
-| `mcp-server` | 8001 | FastMCP — agent tools (also started by OpenClaw) |
 | `rag` | 8002 | RAG service — vector search over past experiments |
 | `vix-temp-controller` | 8101 | Mock temperature controller |
 | `vix-ph-probe` | 8102 | Mock pH probe |
 | `vix-microscopy-imager` | 8103 | Mock microscopy imager |
-| `dashboard` | 5173 | React dashboard (upload, alerts, chat) |
+| `dashboard` | 5173 | Web dashboard (upload, alerts, chat) |
 
 Wait for the backend health check to pass:
 
