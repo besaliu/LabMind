@@ -65,6 +65,15 @@ monitoring:
       Citric acid buffer should hold pH near 7.0. Tighter warning band than run_001
       because pH stability is the key variable being tested. pH above 7.5 causes
       irreversible KDP hydrolysis. A sudden jump suggests buffer exhaustion.
+  clarity_pct:
+    target: 90.0
+    warning_below: 80.0
+    critical_below: 70.0
+    concern: >
+      Falling clarity indicates crystal dissolution or polycrystalline growth.
+      Check temperature first — thermal cause is most common. If temperature is
+      nominal, apply a small (0.5°C max) cooling step. Escalate to researcher
+      if two correction attempts fail.
 
 remediation:
   temperature_high:

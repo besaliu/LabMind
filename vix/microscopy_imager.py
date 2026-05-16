@@ -47,10 +47,12 @@ class MicroscopyImager(InstrumentBase):
 
     async def _capture(self, body: dict) -> dict:
         b64 = self._render_image_b64()
+        readings = self.build_readings()
+        readings["image_b64"] = b64
         payload = {
             "instrument_id": self.instrument_id,
             "timestamp": self._now(),
-            "readings": {"image_b64": b64},
+            "readings": readings,
             "status": compute_status(self.build_readings(), self.scenario.thresholds),
         }
         try:

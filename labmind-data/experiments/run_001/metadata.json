@@ -52,6 +52,12 @@
       "warning_below": 6.8,
       "critical_below": 6.5,
       "concern": "pH above 7.5 causes KDP hydrolysis — this is irreversible and terminates the run. pH below 6.6 promotes phosphate precipitation. A slow drift of 0.1 over 2 hours is normal probe behavior. A sudden jump of more than 0.3 in a single reading suggests contamination or probe malfunction."
+    },
+    "clarity_pct": {
+      "target": 90.0,
+      "warning_below": 80.0,
+      "critical_below": 70.0,
+      "concern": "Falling clarity indicates crystal dissolution, cracking, or polycrystalline growth. It cannot be corrected directly — it is a symptom. Check temperature first; if temperature is anomalous, correcting it should recover clarity. If temperature is nominal, apply a small (0.5°C max) cooling step to slow dissolution. Escalate to researcher if two correction attempts fail."
     }
   },
   "remediation": {
