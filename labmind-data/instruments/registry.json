@@ -1,1 +1,17 @@
-{}
+{
+  "temp_controller_01": {
+    "instrument_id": "temp_controller_01",
+    "type": "temp_controller",
+    "name": "Crystal Growth Temperature Controller",
+    "port": 8101,
+    "capabilities": [
+      "read_temperature",
+      "set_temperature",
+      "read_cooling_rate",
+      "set_cooling_rate"
+    ],
+    "last_seen": "2026-05-16T06:02:13.309219+00:00",
+    "status": "online",
+    "registered_at": "2026-05-16T06:02:13.309219+00:00"
+  }
+}
