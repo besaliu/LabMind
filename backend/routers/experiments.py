@@ -47,7 +47,7 @@ async def upload_experiment(doc: UploadFile = File(...)):
     storage.write_metadata(run_id, meta)
     storage.set_pending_run_id(run_id)
 
-    # RAG similarity check is the agent's responsibility via the query_rag MCP tool.
+    # Similarity check is the agent's responsibility via list_experiment_reports() MCP tool.
     # The agent polls GET /api/experiments/current, sees status=pending, runs the check,
     # and outputs a confirmation prompt in the OpenClaw chat if a similar run is found.
     return {"run_id": run_id, "status": "pending"}

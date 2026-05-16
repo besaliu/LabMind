@@ -31,7 +31,6 @@ network:
   allow:
     - localhost:8000   # FastAPI backend
     - localhost:8001   # FastMCP server (self)
-    - localhost:8002   # RAG service
     - localhost:8101   # VIX temp controller
     - localhost:8102   # VIX pH probe
     - localhost:8103   # VIX microscopy imager
@@ -56,4 +55,3 @@ env:
   LABMIND_DATA: /labmind-data
   CATALOG_DIR: /instruments/catalog
   BACKEND_URL: http://localhost:8000
-  RAG_SERVICE_URL: http://localhost:8002
